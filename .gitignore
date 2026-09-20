@@ -1,0 +1,12 @@
+.DS_Store
+.venv/
+__pycache__/
+.pytest_cache/
+
+# Local media and generated results
+data/*.mov
+data/*.mp4
+outputs/
+
+# Downloaded model weights
+*.pt
