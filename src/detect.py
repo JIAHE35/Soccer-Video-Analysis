@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any
 
 
-# OpenCV uses BGR colors. Referee is reserved for the future custom model.
+# OpenCV uses BGR colors. The referee label is ready for a future custom model.
 CLASS_COLORS: dict[str, tuple[int, int, int]] = {
     "player": (0, 255, 0),
     "referee": (0, 0, 255),
@@ -16,12 +16,19 @@ CLASS_COLORS: dict[str, tuple[int, int, int]] = {
 
 MODEL_LABEL_TO_PROJECT_LABEL = {
     "person": "player",
+    "player": "player",
+    "referee": "referee",
     "sports ball": "ball",
+    "ball": "ball",
 }
+
+FIELD_HSV_LOWER = (25, 30, 20)
+FIELD_HSV_UPPER = (100, 255, 255)
+FIELD_PATCH_RADIUS = 10
 
 
 def classify_model_label(model_label: str) -> str | None:
-    """Map a pretrained COCO label to the current project label."""
+    """Map a model label to the current project label."""
 
     return MODEL_LABEL_TO_PROJECT_LABEL.get(model_label)
 
@@ -30,6 +37,68 @@ def choose_output_fps(source_fps: float, fallback: float = 30.0) -> float:
     """Keep the source playback speed, with a fallback for missing metadata."""
 
     return source_fps if source_fps > 0 else fallback
+
+
+def build_field_mask(frame: Any, cv2: Any) -> Any:
+    """Create a rough grass-field mask from the frame's HSV colors."""
+
+    hsv_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+    return cv2.inRange(hsv_frame, FIELD_HSV_LOWER, FIELD_HSV_UPPER)
+
+
+def detection_anchor(
+    category: str,
+    coordinates: tuple[int, int, int, int],
+) -> tuple[int, int]:
+    """Return the point that should touch the field for a detection."""
+
+    x1, y1, x2, y2 = coordinates
+    center_x = (x1 + x2) // 2
+    if category in {"player", "referee"}:
+        return center_x, y2
+    return center_x, (y1 + y2) // 2
+
+
+def is_detection_on_field(
+    field_mask: Any,
+    category: str,
+    coordinates: tuple[int, int, int, int],
+    cv2: Any,
+    min_green_ratio: float = 0.25,
+) -> bool:
+    """Keep detections whose anchor neighborhood contains enough grass."""
+
+    x1, y1, x2, y2 = coordinates
+    anchor_x, anchor_y = detection_anchor(category, coordinates)
+    height, width = field_mask.shape[:2]
+    if not (0 <= anchor_x < width and 0 <= anchor_y < height):
+        return False
+
+    left = max(0, anchor_x - FIELD_PATCH_RADIUS)
+    right = min(width, anchor_x + FIELD_PATCH_RADIUS + 1)
+    top = max(0, anchor_y - FIELD_PATCH_RADIUS)
+    bottom = min(height, anchor_y + FIELD_PATCH_RADIUS + 1)
+    patch = field_mask[top:bottom, left:right]
+    if patch.size == 0:
+        return False
+
+    green_ratio = cv2.countNonZero(patch) / float(patch.size)
+    if green_ratio >= min_green_ratio:
+        return True
+
+    # A close-up player can be cropped at the bottom of the frame, so the
+    # exact anchor may still be on the player's body. Use the lower box band
+    # as a fallback when there is visible grass around that body.
+    if category in {"player", "referee"} and y2 >= height - FIELD_PATCH_RADIUS - 1:
+        box_left = max(0, min(width - 1, x1))
+        box_right = min(width, max(box_left + 1, x2 + 1))
+        band_top = max(0, y2 - 40)
+        bottom_band = field_mask[band_top : y2 + 1, box_left:box_right]
+        if bottom_band.size:
+            bottom_ratio = cv2.countNonZero(bottom_band) / float(bottom_band.size)
+            return bottom_ratio >= min_green_ratio
+
+    return False
 
 
 def _draw_detection(
@@ -59,10 +128,12 @@ def detect_video(
     source: str | Path,
     output: str | Path,
     model_path: str = "yolo11n.pt",
-    confidence: float = 0.25,
+    player_confidence: float = 0.45,
+    ball_confidence: float = 0.15,
+    min_field_green_ratio: float = 0.25,
     image_size: int = 960,
 ) -> Path:
-    """Detect people and balls, then write an annotated MP4 video."""
+    """Detect field objects, filter off-field detections, and write an MP4."""
 
     try:
         import cv2
@@ -91,7 +162,7 @@ def detect_video(
     model = YOLO(model_path)
     results = model.predict(
         source=str(source_path),
-        conf=confidence,
+        conf=min(player_confidence, ball_confidence),
         imgsz=image_size,
         stream=True,
         verbose=False,
@@ -104,6 +175,8 @@ def detect_video(
             frame = result.orig_img
             if frame is None:
                 continue
+
+            field_mask = build_field_mask(frame, cv2)
 
             if writer is None:
                 height, width = frame.shape[:2]
@@ -125,6 +198,22 @@ def detect_video(
 
                 confidence_value = float(box.conf[0].item())
                 x1, y1, x2, y2 = [int(value) for value in box.xyxy[0].tolist()]
+                confidence_limit = (
+                    ball_confidence
+                    if category == "ball"
+                    else player_confidence
+                )
+                if confidence_value < confidence_limit:
+                    continue
+                if not is_detection_on_field(
+                    field_mask,
+                    category,
+                    (x1, y1, x2, y2),
+                    cv2,
+                    min_green_ratio=min_field_green_ratio,
+                ):
+                    continue
+
                 _draw_detection(
                     frame,
                     cv2,
@@ -150,7 +239,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--source", default="data/soccervideo_cfr.mp4")
     parser.add_argument("--output", default="outputs/detected_cfr.mp4")
     parser.add_argument("--model", default="yolo11n.pt")
-    parser.add_argument("--conf", type=float, default=0.25)
+    parser.add_argument("--player-conf", type=float, default=0.45)
+    parser.add_argument("--ball-conf", type=float, default=0.15)
+    parser.add_argument("--min-field-green-ratio", type=float, default=0.25)
     parser.add_argument("--imgsz", type=int, default=960)
     return parser.parse_args()
 
@@ -161,7 +252,9 @@ if __name__ == "__main__":
         source=args.source,
         output=args.output,
         model_path=args.model,
-        confidence=args.conf,
+        player_confidence=args.player_conf,
+        ball_confidence=args.ball_conf,
+        min_field_green_ratio=args.min_field_green_ratio,
         image_size=args.imgsz,
     )
     print(f"Saved annotated video to {result_path}")

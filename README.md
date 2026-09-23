@@ -1,7 +1,7 @@
 # Soccer Video Analysis
 
-Version 0.1 detects people and sports balls in a constant-frame-rate soccer video
-and writes an annotated MP4.
+Version 0.2 detects people and sports balls in a constant-frame-rate soccer
+video, filters likely off-field detections, and writes an annotated MP4.
 
 ## Setup
 
@@ -33,6 +33,20 @@ python src/detect.py
 
 The first run downloads `yolo11n.pt`. The annotated video is written to
 `outputs/detected_cfr.mp4`.
+
+The detector uses separate confidence thresholds for players and balls. It
+also checks the grass support around each detection anchor: the bottom-center
+of a player box, or the center of a ball box. This reduces false positives in
+the stands and around advertising boards without adding tracking yet.
+
+Optional tuning flags:
+
+```bash
+python src/detect.py \
+  --player-conf 0.45 \
+  --ball-conf 0.15 \
+  --min-field-green-ratio 0.25
+```
 
 Current pretrained labels:
 
