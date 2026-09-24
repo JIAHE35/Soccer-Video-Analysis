@@ -1,4 +1,4 @@
-"""Run a small YOLO video-detection pipeline for the soccer project."""
+"""Run a YOLO detection and player-tracking pipeline for the soccer project."""
 
 from __future__ import annotations
 
@@ -31,6 +31,22 @@ def classify_model_label(model_label: str) -> str | None:
     """Map a model label to the current project label."""
 
     return MODEL_LABEL_TO_PROJECT_LABEL.get(model_label)
+
+
+def select_model_class_ids(
+    model_names: dict[int, str],
+) -> tuple[list[int], list[int]]:
+    """Split model class IDs into trackable people and detection-only balls."""
+
+    people_class_ids: list[int] = []
+    ball_class_ids: list[int] = []
+    for class_id, model_label in model_names.items():
+        category = classify_model_label(model_label)
+        if category in {"player", "referee"}:
+            people_class_ids.append(class_id)
+        elif category == "ball":
+            ball_class_ids.append(class_id)
+    return people_class_ids, ball_class_ids
 
 
 def choose_output_fps(source_fps: float, fallback: float = 30.0) -> float:
@@ -107,11 +123,12 @@ def _draw_detection(
     category: str,
     confidence: float,
     coordinates: tuple[int, int, int, int],
+    track_id: int | None = None,
 ) -> None:
     x1, y1, x2, y2 = coordinates
     color = CLASS_COLORS[category]
     cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
-    text = f"{category} {confidence:.2f}"
+    text = format_detection_label(category, confidence, track_id)
     cv2.putText(
         frame,
         text,
@@ -124,16 +141,31 @@ def _draw_detection(
     )
 
 
+def format_detection_label(
+    category: str,
+    confidence: float,
+    track_id: int | None = None,
+) -> str:
+    """Format labels with tracker IDs for people, but never for balls."""
+
+    identity = (
+        f" #{track_id}"
+        if category in {"player", "referee"} and track_id is not None
+        else ""
+    )
+    return f"{category}{identity} {confidence:.2f}"
+
+
 def detect_video(
     source: str | Path,
     output: str | Path,
     model_path: str = "yolo11n.pt",
     player_confidence: float = 0.5,
-    ball_confidence: float = 0.3,
+    ball_confidence: float = 0.18,
     min_field_green_ratio: float = 0.25,
     image_size: int = 960,
 ) -> Path:
-    """Detect field objects, filter off-field detections, and write an MP4."""
+    """Track field people, detect balls, and write an annotated MP4."""
 
     try:
         import cv2
@@ -159,11 +191,21 @@ def detect_video(
     source_fps = choose_output_fps(float(capture.get(cv2.CAP_PROP_FPS)))
     capture.release()
 
-    model = YOLO(model_path)
-    results = model.predict(
+    tracking_model = YOLO(model_path)
+    people_class_ids, ball_class_ids = select_model_class_ids(tracking_model.names)
+    if not people_class_ids:
+        raise RuntimeError("Model has no person, player, or referee class")
+
+    ball_model = YOLO(model_path) if ball_class_ids else None
+    # ByteTrack uses weak detections to recover existing people; only the
+    # user-selected player confidence is used when drawing their boxes.
+    results = tracking_model.track(
         source=str(source_path),
-        conf=min(player_confidence, ball_confidence),
+        conf=min(player_confidence, 0.1),
         imgsz=image_size,
+        classes=people_class_ids,
+        tracker="bytetrack.yaml",
+        persist=True,
         stream=True,
         verbose=False,
     )
@@ -177,6 +219,16 @@ def detect_video(
                 continue
 
             field_mask = build_field_mask(frame, cv2)
+
+            ball_result = None
+            if ball_model is not None:
+                ball_result = ball_model.predict(
+                    source=frame,
+                    conf=ball_confidence,
+                    imgsz=image_size,
+                    classes=ball_class_ids,
+                    verbose=False,
+                )[0]
 
             if writer is None:
                 height, width = frame.shape[:2]
@@ -193,17 +245,12 @@ def detect_video(
                 class_id = int(box.cls[0].item())
                 model_label = str(result.names[class_id])
                 category = classify_model_label(model_label)
-                if category is None:
+                if category not in {"player", "referee"}:
                     continue
 
                 confidence_value = float(box.conf[0].item())
                 x1, y1, x2, y2 = [int(value) for value in box.xyxy[0].tolist()]
-                confidence_limit = (
-                    ball_confidence
-                    if category == "ball"
-                    else player_confidence
-                )
-                if confidence_value < confidence_limit:
+                if confidence_value < player_confidence:
                     continue
                 if not is_detection_on_field(
                     field_mask,
@@ -214,13 +261,41 @@ def detect_video(
                 ):
                     continue
 
+                track_id = None
+                if category in {"player", "referee"} and box.id is not None:
+                    track_id = int(box.id[0].item())
+
                 _draw_detection(
                     frame,
                     cv2,
                     category,
                     confidence_value,
                     (x1, y1, x2, y2),
+                    track_id=track_id,
                 )
+
+            if ball_result is not None:
+                for box in ball_result.boxes:
+                    confidence_value = float(box.conf[0].item())
+                    x1, y1, x2, y2 = [
+                        int(value) for value in box.xyxy[0].tolist()
+                    ]
+                    if not is_detection_on_field(
+                        field_mask,
+                        "ball",
+                        (x1, y1, x2, y2),
+                        cv2,
+                        min_green_ratio=min_field_green_ratio,
+                    ):
+                        continue
+
+                    _draw_detection(
+                        frame,
+                        cv2,
+                        "ball",
+                        confidence_value,
+                        (x1, y1, x2, y2),
+                    )
 
             writer.write(frame)
             frames_written += 1
@@ -237,10 +312,10 @@ def detect_video(
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--source", default="data/soccervideo_cfr.mp4")
-    parser.add_argument("--output", default="outputs/detected_cfr.mp4")
+    parser.add_argument("--output", default="outputs/tracked_cfr_v03.mp4")
     parser.add_argument("--model", default="yolo11n.pt")
     parser.add_argument("--player-conf", type=float, default=0.5)
-    parser.add_argument("--ball-conf", type=float, default=0.3)
+    parser.add_argument("--ball-conf", type=float, default=0.18)
     parser.add_argument("--min-field-green-ratio", type=float, default=0.25)
     parser.add_argument("--imgsz", type=int, default=960)
     return parser.parse_args()
