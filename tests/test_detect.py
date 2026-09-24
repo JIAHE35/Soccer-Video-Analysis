@@ -45,8 +45,8 @@ class DetectionLabelTests(unittest.TestCase):
 
         self.assertEqual(args.source, "data/soccervideo_cfr.mp4")
         self.assertEqual(args.output, "outputs/detected_cfr.mp4")
-        self.assertEqual(args.player_conf, 0.45)
-        self.assertEqual(args.ball_conf, 0.15)
+        self.assertEqual(args.player_conf, 0.5)
+        self.assertEqual(args.ball_conf, 0.3)
         self.assertEqual(args.min_field_green_ratio, 0.25)
 
     def test_player_anchor_uses_bottom_center_and_ball_uses_center(self):

@@ -43,8 +43,8 @@ Optional tuning flags:
 
 ```bash
 python src/detect.py \
-  --player-conf 0.45 \
-  --ball-conf 0.15 \
+  --player-conf 0.5 \
+  --ball-conf 0.3 \
   --min-field-green-ratio 0.25
 ```
 

@@ -128,8 +128,8 @@ def detect_video(
     source: str | Path,
     output: str | Path,
     model_path: str = "yolo11n.pt",
-    player_confidence: float = 0.45,
-    ball_confidence: float = 0.15,
+    player_confidence: float = 0.5,
+    ball_confidence: float = 0.3,
     min_field_green_ratio: float = 0.25,
     image_size: int = 960,
 ) -> Path:
@@ -239,8 +239,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--source", default="data/soccervideo_cfr.mp4")
     parser.add_argument("--output", default="outputs/detected_cfr.mp4")
     parser.add_argument("--model", default="yolo11n.pt")
-    parser.add_argument("--player-conf", type=float, default=0.45)
-    parser.add_argument("--ball-conf", type=float, default=0.15)
+    parser.add_argument("--player-conf", type=float, default=0.5)
+    parser.add_argument("--ball-conf", type=float, default=0.3)
     parser.add_argument("--min-field-green-ratio", type=float, default=0.25)
     parser.add_argument("--imgsz", type=int, default=960)
     return parser.parse_args()
