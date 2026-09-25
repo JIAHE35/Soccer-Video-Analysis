@@ -1,3 +1,4 @@
+import csv
 import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -23,6 +24,18 @@ class DetectionLabelTests(unittest.TestCase):
         self.assertEqual(classify_model_label("person"), "player")
         self.assertEqual(CLASS_COLORS["player"], (0, 255, 0))
 
+    def test_v04_roles_have_distinct_colors(self):
+        role_colors = {
+            CLASS_COLORS["team_a"],
+            CLASS_COLORS["team_b"],
+            CLASS_COLORS["team_a_goalkeeper"],
+            CLASS_COLORS["team_b_goalkeeper"],
+            CLASS_COLORS["referee"],
+            CLASS_COLORS["unknown"],
+        }
+
+        self.assertEqual(len(role_colors), 6)
+
     def test_sports_ball_maps_to_ball_color(self):
         self.assertEqual(classify_model_label("sports ball"), "ball")
         self.assertEqual(CLASS_COLORS["ball"], (255, 0, 0))
@@ -35,8 +48,8 @@ class DetectionLabelTests(unittest.TestCase):
     def test_unknown_model_label_is_ignored(self):
         self.assertIsNone(classify_model_label("car"))
 
-    def test_referee_color_is_reserved_for_custom_model(self):
-        self.assertEqual(CLASS_COLORS["referee"], (0, 0, 255))
+    def test_referee_uses_visible_yellow_annotation(self):
+        self.assertEqual(CLASS_COLORS["referee"], (0, 255, 255))
 
     def test_output_fps_preserves_source_fps(self):
         self.assertEqual(choose_output_fps(32.652), 32.652)
@@ -47,10 +60,46 @@ class DetectionLabelTests(unittest.TestCase):
             args = parse_args()
 
         self.assertEqual(args.source, "data/soccervideo_cfr.mp4")
-        self.assertEqual(args.output, "outputs/v03_player_tracking.mp4")
+        self.assertEqual(args.output, "outputs/v04_team_classification.mp4")
+        self.assertEqual(args.csv_output, "outputs/v04_detections.csv")
         self.assertEqual(args.player_conf, 0.5)
         self.assertEqual(args.ball_conf, 0.18)
         self.assertEqual(args.min_field_green_ratio, 0.25)
+        self.assertEqual(args.team_a_color, "red")
+        self.assertEqual(args.team_b_color, "white")
+        self.assertEqual(args.referee_color, "black")
+        self.assertEqual(args.team_a_goalkeeper_color, "none")
+        self.assertEqual(args.team_b_goalkeeper_color, "blue")
+
+    def test_team_and_referee_labels_include_track_id(self):
+        self.assertEqual(
+            detect.format_detection_label("team_a", 0.834, track_id=12),
+            "Team A #12 0.83",
+        )
+        self.assertEqual(
+            detect.format_detection_label("team_b", 0.761, track_id=7),
+            "Team B #7 0.76",
+        )
+        self.assertEqual(
+            detect.format_detection_label("referee", 0.684, track_id=18),
+            "Referee #18 0.68",
+        )
+        self.assertEqual(
+            detect.format_detection_label("unknown", 0.612, track_id=23),
+            "Unknown #23 0.61",
+        )
+        self.assertEqual(
+            detect.format_detection_label(
+                "team_a_goalkeeper", 0.792, track_id=1
+            ),
+            "Team A GK #1 0.79",
+        )
+        self.assertEqual(
+            detect.format_detection_label(
+                "team_b_goalkeeper", 0.881, track_id=42
+            ),
+            "Team B GK #42 0.88",
+        )
 
     def test_player_label_includes_track_id(self):
         self.assertTrue(hasattr(detect, "format_detection_label"))
@@ -151,6 +200,7 @@ class VideoPipelineTests(unittest.TestCase):
 
         names = {0: "person", 32: "sports ball"}
         frame = np.full((128, 200, 3), (30, 120, 30), dtype=np.uint8)
+        frame[40:70, 25:55] = (0, 0, 180)
         results = [
             Results(frame.copy(), "input.mp4", names,
                     boxes=np.array([[20, 30, 60, 100, 7, 0.8, 0]], dtype=np.float32)),
@@ -186,6 +236,7 @@ class VideoPipelineTests(unittest.TestCase):
         with TemporaryDirectory() as directory:
             source = Path(directory) / "input.mp4"
             output = Path(directory) / "output.mp4"
+            csv_output = Path(directory) / "detections.csv"
             writer = cv2.VideoWriter(
                 str(source), cv2.VideoWriter_fourcc(*"mp4v"), 30, (200, 128)
             )
@@ -196,13 +247,91 @@ class VideoPipelineTests(unittest.TestCase):
 
             with patch("ultralytics.YOLO", side_effect=[PeopleModel(), BallModel()]), \
                     patch.object(cv2, "putText", wraps=cv2.putText) as put_text:
-                self.assertEqual(detect.detect_video(source, output), output)
+                self.assertEqual(
+                    detect.detect_video(source, output, csv_output=csv_output), output
+                )
 
             labels = [call.args[1] for call in put_text.call_args_list]
             self.assertEqual(labels, [
-                "player #7 0.80", "ball 0.21",
-                "player 0.65", "ball 0.21", "ball 0.21",
+                "Unknown #7 0.80", "ball 0.21",
+                "Team A 0.65", "ball 0.21", "ball 0.21",
             ])
+            with csv_output.open(newline="", encoding="utf-8") as csv_file:
+                rows = list(csv.DictReader(csv_file))
+            self.assertEqual(
+                list(rows[0]),
+                [
+                    "frame",
+                    "time",
+                    "track_id",
+                    "role",
+                    "x1",
+                    "y1",
+                    "x2",
+                    "y2",
+                    "confidence",
+                ],
+            )
+            self.assertEqual(
+                rows,
+                [
+                    {
+                        "frame": "0",
+                        "time": "0.000",
+                        "track_id": "7",
+                        "role": "unknown",
+                        "x1": "20",
+                        "y1": "30",
+                        "x2": "60",
+                        "y2": "100",
+                        "confidence": "0.8000",
+                    },
+                    {
+                        "frame": "0",
+                        "time": "0.000",
+                        "track_id": "",
+                        "role": "ball",
+                        "x1": "130",
+                        "y1": "90",
+                        "x2": "138",
+                        "y2": "98",
+                        "confidence": "0.2100",
+                    },
+                    {
+                        "frame": "1",
+                        "time": "0.033",
+                        "track_id": "",
+                        "role": "team_a",
+                        "x1": "20",
+                        "y1": "30",
+                        "x2": "60",
+                        "y2": "100",
+                        "confidence": "0.6500",
+                    },
+                    {
+                        "frame": "1",
+                        "time": "0.033",
+                        "track_id": "",
+                        "role": "ball",
+                        "x1": "130",
+                        "y1": "90",
+                        "x2": "138",
+                        "y2": "98",
+                        "confidence": "0.2100",
+                    },
+                    {
+                        "frame": "2",
+                        "time": "0.067",
+                        "track_id": "",
+                        "role": "ball",
+                        "x1": "130",
+                        "y1": "90",
+                        "x2": "138",
+                        "y2": "98",
+                        "confidence": "0.2100",
+                    },
+                ],
+            )
             capture = cv2.VideoCapture(str(output))
             try:
                 self.assertAlmostEqual(capture.get(cv2.CAP_PROP_FPS), 30)

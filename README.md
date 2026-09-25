@@ -1,7 +1,8 @@
 # Soccer Video Analysis
 
-Version 0.3 tracks people and detects sports balls in a constant-frame-rate
-soccer video, filters likely off-field detections, and writes an annotated MP4.
+Version 0.4 tracks people, classifies their match roles from kit colors, detects
+sports balls, filters likely off-field detections, and writes an annotated MP4
+plus per-detection CSV data.
 
 ## Version history
 
@@ -13,7 +14,7 @@ erase the reasoning, parameters, results, and limitations of earlier versions.
 | V0.1 | Complete | Pretrained YOLO player and ball detection | [V0.1 README](docs/versions/v0.1.md) |
 | V0.2 | Complete | Field filtering and separate confidence thresholds | [V0.2 README](docs/versions/v0.2.md) |
 | V0.3 | Complete | ByteTrack IDs for people and independent ball detection | [V0.3 README](docs/versions/v0.3.md) |
-| V0.4 | Planned | Team and referee classification with temporal voting | [V0.4 README](docs/versions/v0.4.md) |
+| V0.4 | Complete | Team, goalkeeper, and referee classification | [V0.4 README](docs/versions/v0.4.md) |
 
 The complete milestone index is available in
 [docs/versions/README.md](docs/versions/README.md). The root README describes
@@ -27,7 +28,7 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-## Run V0.3
+## Run V0.4
 
 The project uses the constant-frame-rate input `data/soccervideo_cfr.mp4` by
 default. For a variable-frame-rate source, convert a local copy first:
@@ -47,15 +48,19 @@ Then run:
 python src/detect.py
 ```
 
-The first run downloads `yolo11n.pt`. The tracked video is written to
-`outputs/v03_player_tracking.mp4`.
+The first run downloads `yolo11n.pt`. V0.4 writes:
+
+- `outputs/v04_team_classification.mp4`
+- `outputs/v04_detections.csv`
 
 The pipeline uses separate confidence thresholds for players and balls. People
 are sent to ByteTrack while balls use an independent detection pass, so balls
-never receive a track ID. Grass support filtering is applied before annotations
-are drawn. Two inference passes are run per frame; this costs more processing
-time than V0.2. The player display threshold stays at 0.5. ByteTrack also sees
-weaker person detections to help associate people across frames.
+never receive a track ID. After grass filtering, the central upper-body region
+of each person box is classified using match-specific HSV kit colors. A rolling
+vote by track ID prevents one noisy frame from immediately changing an
+established role. Two inference passes are run per frame. The player display
+threshold stays at 0.5, while ByteTrack sees weaker person detections to help
+associate people across frames.
 
 Optional tuning flags:
 
@@ -63,18 +68,30 @@ Optional tuning flags:
 python src/detect.py \
   --player-conf 0.5 \
   --ball-conf 0.18 \
-  --min-field-green-ratio 0.25
+  --min-field-green-ratio 0.25 \
+  --team-a-color red \
+  --team-b-color white \
+  --referee-color black \
+  --team-a-goalkeeper-color none \
+  --team-b-goalkeeper-color blue
 ```
 
-Current pretrained labels:
+Current labels:
 
-- `person` is shown as a green `player #ID` box when ByteTrack has assigned an
-  ID.
+- Red kits are shown as red `Team A #ID` boxes.
+- White kits are shown as cyan `Team B #ID` boxes.
+- Blue kits are shown as magenta `Team B GK #ID` boxes for this match.
+- `Team A GK` is supported but remains disabled until its kit color is
+  confirmed in the source video.
+- Black referee kits are shown as yellow `Referee #ID` boxes.
+- Ambiguous or unconfigured kits use gray `Unknown #ID` boxes.
 - `sports ball` is shown as a blue `ball` box.
-- A red `referee` color is reserved for a future custom three-class model;
-  the pretrained model cannot reliably separate referees from players.
 
-## V0.2 comparison
+The CSV contains zero-based frame numbers, timestamps, track IDs, roles,
+bounding boxes, and YOLO detection confidence. Role classification is based on
+kit color and is not a custom-trained referee detector.
+
+## Earlier comparisons
 
 The local comparison uses the same input, frame numbers, and 30 FPS timeline:
 
@@ -115,13 +132,18 @@ is a version comparison rather than a controlled tracking accuracy benchmark.
 Track IDs are temporary associations, not jersey numbers or player identities.
 They are intended for continuous shots; occlusions, fast camera movement, cuts,
 and replays can cause switches or reuse. Cross-shot identity recovery and shot
-boundary resets are not implemented. Missing IDs fall back to a plain player
-label. The grass filter is a heuristic and can still accept some sideline people
-or reject valid detections.
+boundary resets are not implemented. People without an ID use the current
+frame's kit classification without an `#ID` suffix. The grass filter is a
+heuristic and can still accept some sideline people or reject valid detections.
 
 Lowering ball confidence to 0.18 retains more candidates, including potential
 false positives such as pitch markings. It does not fill missing detections or
 guarantee continuous ball tracking. More boxes alone do not prove better accuracy.
+
+Kit-color classification is match-specific. Distant players, shadows,
+occlusion, close-ups, and goalkeeper kits that are not configured can produce
+`Unknown` or an incorrect role. Temporal voting reduces frame-to-frame flicker
+but cannot fix a ByteTrack ID switch.
 
 Local spot checks on `soccervideo_cfr.mp4`: many visible people keep their IDs
 between 20.0 and 20.5 seconds, but some switch. At 46 seconds the 0.18 version
