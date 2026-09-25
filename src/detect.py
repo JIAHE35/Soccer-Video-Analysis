@@ -312,7 +312,7 @@ def detect_video(
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--source", default="data/soccervideo_cfr.mp4")
-    parser.add_argument("--output", default="outputs/tracked_cfr_v03.mp4")
+    parser.add_argument("--output", default="outputs/v03_player_tracking.mp4")
     parser.add_argument("--model", default="yolo11n.pt")
     parser.add_argument("--player-conf", type=float, default=0.5)
     parser.add_argument("--ball-conf", type=float, default=0.18)

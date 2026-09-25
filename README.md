@@ -3,6 +3,22 @@
 Version 0.3 tracks people and detects sports balls in a constant-frame-rate
 soccer video, filters likely off-field detections, and writes an annotated MP4.
 
+## Version history
+
+Each milestone has its own permanent README so that later improvements do not
+erase the reasoning, parameters, results, and limitations of earlier versions.
+
+| Version | Status | Milestone | Documentation |
+| --- | --- | --- | --- |
+| V0.1 | Complete | Pretrained YOLO player and ball detection | [V0.1 README](docs/versions/v0.1.md) |
+| V0.2 | Complete | Field filtering and separate confidence thresholds | [V0.2 README](docs/versions/v0.2.md) |
+| V0.3 | Complete | ByteTrack IDs for people and independent ball detection | [V0.3 README](docs/versions/v0.3.md) |
+| V0.4 | Planned | Team and referee classification with temporal voting | [V0.4 README](docs/versions/v0.4.md) |
+
+The complete milestone index is available in
+[docs/versions/README.md](docs/versions/README.md). The root README describes
+the latest implemented version only.
+
 ## Setup
 
 ```bash
@@ -32,7 +48,7 @@ python src/detect.py
 ```
 
 The first run downloads `yolo11n.pt`. The tracked video is written to
-`outputs/tracked_cfr_v03.mp4`.
+`outputs/v03_player_tracking.mp4`.
 
 The pipeline uses separate confidence thresholds for players and balls. People
 are sent to ByteTrack while balls use an independent detection pass, so balls
@@ -64,8 +80,8 @@ The local comparison uses the same input, frame numbers, and 30 FPS timeline:
 
 | File | Version | Player confidence | Ball confidence |
 | --- | --- | --- | --- |
-| `outputs/detected_cfr_v02.mp4` | V0.2 baseline, no IDs | 0.5 | 0.3 |
-| `outputs/tracked_cfr_v03.mp4` | V0.3, people with IDs | 0.5 | 0.18 |
+| `outputs/v02_player_detection.mp4` | V0.2 baseline, no IDs | 0.5 | 0.3 |
+| `outputs/v03_player_tracking.mp4` | V0.3, people with IDs | 0.5 | 0.18 |
 | `outputs/comparison_v02_v03.mp4` | V0.2 left, V0.3 right | | |
 
 The existing V0.2 video is preserved. If it needs to be regenerated, its code
@@ -75,7 +91,7 @@ is available at commit `009ac8a`:
 git show 009ac8a:src/detect.py > /tmp/soccer_detect_v02.py
 python /tmp/soccer_detect_v02.py \
   --source data/soccervideo_cfr.mp4 \
-  --output outputs/detected_cfr_v02.mp4 \
+  --output outputs/v02_player_detection.mp4 \
   --player-conf 0.5 --ball-conf 0.3
 ```
 
@@ -84,7 +100,7 @@ versions finish:
 
 ```bash
 ffmpeg -n \
-  -i outputs/detected_cfr_v02.mp4 -i outputs/tracked_cfr_v03.mp4 \
+  -i outputs/v02_player_detection.mp4 -i outputs/v03_player_tracking.mp4 \
   -filter_complex "[0:v]setpts=PTS-STARTPTS[left];[1:v]setpts=PTS-STARTPTS[right];[left][right]hstack=inputs=2[v]" \
   -map "[v]" -an -c:v libx264 -pix_fmt yuv420p -movflags +faststart \
   outputs/comparison_v02_v03.mp4

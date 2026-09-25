@@ -47,7 +47,7 @@ class DetectionLabelTests(unittest.TestCase):
             args = parse_args()
 
         self.assertEqual(args.source, "data/soccervideo_cfr.mp4")
-        self.assertEqual(args.output, "outputs/tracked_cfr_v03.mp4")
+        self.assertEqual(args.output, "outputs/v03_player_tracking.mp4")
         self.assertEqual(args.player_conf, 0.5)
         self.assertEqual(args.ball_conf, 0.18)
         self.assertEqual(args.min_field_green_ratio, 0.25)
