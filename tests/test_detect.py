@@ -14,6 +14,7 @@ from src.detect import (
     choose_output_fps,
     classify_model_label,
     detection_anchor,
+    is_ball_appearance_plausible,
     is_detection_on_field,
     parse_args,
 )
@@ -60,10 +61,17 @@ class DetectionLabelTests(unittest.TestCase):
             args = parse_args()
 
         self.assertEqual(args.source, "data/soccervideo_cfr.mp4")
-        self.assertEqual(args.output, "outputs/v04_team_classification.mp4")
-        self.assertEqual(args.csv_output, "outputs/v04_detections.csv")
+        self.assertEqual(args.output, "outputs/v05_ball_tracking.mp4")
+        self.assertEqual(args.csv_output, "outputs/v05_detections.csv")
         self.assertEqual(args.player_conf, 0.5)
         self.assertEqual(args.ball_conf, 0.18)
+        self.assertEqual(args.ball_confirm_hits, 2)
+        self.assertEqual(args.ball_max_missing, 8)
+        self.assertEqual(args.ball_max_distance, 120.0)
+        self.assertEqual(args.ball_max_box_side, 48)
+        self.assertEqual(args.ball_max_aspect_ratio, 1.8)
+        self.assertEqual(args.ball_min_texture_std, 25.0)
+        self.assertEqual(args.ball_min_saturation, 180.0)
         self.assertEqual(args.min_field_green_ratio, 0.25)
         self.assertEqual(args.team_a_color, "red")
         self.assertEqual(args.team_b_color, "white")
@@ -122,6 +130,12 @@ class DetectionLabelTests(unittest.TestCase):
             "ball 0.46",
         )
 
+    def test_predicted_ball_label_does_not_claim_detection_confidence(self):
+        self.assertEqual(
+            detect.format_ball_label("predicted", confidence=None),
+            "ball predicted",
+        )
+
     def test_model_class_ids_separate_people_from_balls(self):
         self.assertTrue(hasattr(detect, "select_model_class_ids"))
         self.assertEqual(
@@ -176,6 +190,28 @@ class DetectionLabelTests(unittest.TestCase):
             )
         )
 
+    def test_low_texture_low_saturation_pitch_mark_is_rejected(self):
+        frame = np.full((80, 80, 3), (30, 120, 30), dtype=np.uint8)
+        frame[30:40, 30:42] = (190, 190, 190)
+
+        self.assertFalse(
+            is_ball_appearance_plausible(frame, (30, 30, 42, 40), cv2)
+        )
+
+    def test_textured_or_saturated_ball_candidate_is_accepted(self):
+        textured = np.full((80, 80, 3), (30, 120, 30), dtype=np.uint8)
+        textured[30:40, 30:42] = (230, 230, 230)
+        textured[30:40:2, 30:42:2] = (20, 20, 20)
+        saturated = np.full((80, 80, 3), (30, 120, 30), dtype=np.uint8)
+        saturated[30:40, 30:42] = (0, 220, 220)
+
+        self.assertTrue(
+            is_ball_appearance_plausible(textured, (30, 30, 42, 40), cv2)
+        )
+        self.assertTrue(
+            is_ball_appearance_plausible(saturated, (30, 30, 42, 40), cv2)
+        )
+
     def test_bottom_cropped_player_uses_grass_below_the_body(self):
         frame = np.zeros((100, 100, 3), dtype=np.uint8)
         frame[:, :] = (120, 120, 120)
@@ -195,17 +231,17 @@ class DetectionLabelTests(unittest.TestCase):
 
 
 class VideoPipelineTests(unittest.TestCase):
-    def test_low_confidence_ball_bypasses_tracking_and_empty_frames_survive(self):
+    def test_ball_is_confirmed_then_predicted_across_short_gap(self):
         from ultralytics.engine.results import Results
 
         names = {0: "person", 32: "sports ball"}
         frame = np.full((128, 200, 3), (30, 120, 30), dtype=np.uint8)
-        frame[40:70, 25:55] = (0, 0, 180)
+        frame[40:70, 115:145] = (0, 0, 180)
         results = [
             Results(frame.copy(), "input.mp4", names,
-                    boxes=np.array([[20, 30, 60, 100, 7, 0.8, 0]], dtype=np.float32)),
+                    boxes=np.array([[110, 30, 150, 100, 7, 0.8, 0]], dtype=np.float32)),
             Results(frame.copy(), "input.mp4", names,
-                    boxes=np.array([[20, 30, 60, 100, 0.65, 0]], dtype=np.float32)),
+                    boxes=np.array([[110, 30, 150, 100, 0.65, 0]], dtype=np.float32)),
             Results(frame.copy(), "input.mp4", names,
                     boxes=np.empty((0, 6), dtype=np.float32)),
         ]
@@ -224,14 +260,22 @@ class VideoPipelineTests(unittest.TestCase):
                 return iter(results)
 
         class BallModel:
+            def __init__(self):
+                self.call_count = 0
+
             def predict(self, **kwargs):
                 test_case.assertEqual(kwargs["classes"], [32])
                 test_case.assertEqual(kwargs["conf"], 0.18)
                 np.testing.assert_array_equal(kwargs["source"], frame)
-                return [Results(
-                    kwargs["source"], "input.mp4", names,
-                    boxes=np.array([[130, 90, 138, 98, 0.21, 32]], dtype=np.float32),
-                )]
+                boxes = (
+                    np.array(
+                        [[130, 90, 138, 98, 0.21, 32]], dtype=np.float32
+                    )
+                    if self.call_count < 2
+                    else np.empty((0, 6), dtype=np.float32)
+                )
+                self.call_count += 1
+                return [Results(kwargs["source"], "input.mp4", names, boxes=boxes)]
 
         with TemporaryDirectory() as directory:
             source = Path(directory) / "input.mp4"
@@ -253,8 +297,8 @@ class VideoPipelineTests(unittest.TestCase):
 
             labels = [call.args[1] for call in put_text.call_args_list]
             self.assertEqual(labels, [
-                "Unknown #7 0.80", "ball 0.21",
-                "Team A 0.65", "ball 0.21", "ball 0.21",
+                "Unknown #7 0.80",
+                "Team A 0.65", "ball 0.21", "ball predicted",
             ])
             with csv_output.open(newline="", encoding="utf-8") as csv_file:
                 rows = list(csv.DictReader(csv_file))
@@ -270,6 +314,7 @@ class VideoPipelineTests(unittest.TestCase):
                     "x2",
                     "y2",
                     "confidence",
+                    "ball_state",
                 ],
             )
             self.assertEqual(
@@ -280,33 +325,24 @@ class VideoPipelineTests(unittest.TestCase):
                         "time": "0.000",
                         "track_id": "7",
                         "role": "unknown",
-                        "x1": "20",
+                        "x1": "110",
                         "y1": "30",
-                        "x2": "60",
+                        "x2": "150",
                         "y2": "100",
                         "confidence": "0.8000",
-                    },
-                    {
-                        "frame": "0",
-                        "time": "0.000",
-                        "track_id": "",
-                        "role": "ball",
-                        "x1": "130",
-                        "y1": "90",
-                        "x2": "138",
-                        "y2": "98",
-                        "confidence": "0.2100",
+                        "ball_state": "",
                     },
                     {
                         "frame": "1",
                         "time": "0.033",
                         "track_id": "",
                         "role": "team_a",
-                        "x1": "20",
+                        "x1": "110",
                         "y1": "30",
-                        "x2": "60",
+                        "x2": "150",
                         "y2": "100",
                         "confidence": "0.6500",
+                        "ball_state": "",
                     },
                     {
                         "frame": "1",
@@ -318,6 +354,7 @@ class VideoPipelineTests(unittest.TestCase):
                         "x2": "138",
                         "y2": "98",
                         "confidence": "0.2100",
+                        "ball_state": "detected",
                     },
                     {
                         "frame": "2",
@@ -328,7 +365,8 @@ class VideoPipelineTests(unittest.TestCase):
                         "y1": "90",
                         "x2": "138",
                         "y2": "98",
-                        "confidence": "0.2100",
+                        "confidence": "",
+                        "ball_state": "predicted",
                     },
                 ],
             )
@@ -342,7 +380,7 @@ class VideoPipelineTests(unittest.TestCase):
                         break
                     decoded.append(decoded_frame)
                 self.assertEqual(len(decoded), 3)
-                for decoded_frame in decoded:
+                for decoded_frame in decoded[1:]:
                     blue, green, red = map(int, decoded_frame[90, 130])
                     self.assertGreater(blue, green + 60)
                     self.assertGreater(blue, red + 60)

@@ -8,12 +8,14 @@ from pathlib import Path
 from typing import Any
 
 if __package__:
+    from .ball_tracker import BallCandidate, BallTrackResult, BallTracker
     from .team_classifier import (
         SUPPORTED_KIT_COLORS,
         KitColorClassifier,
         TrackRoleVoter,
     )
 else:
+    from ball_tracker import BallCandidate, BallTrackResult, BallTracker
     from team_classifier import (
         SUPPORTED_KIT_COLORS,
         KitColorClassifier,
@@ -157,6 +159,35 @@ def is_detection_on_field(
     return False
 
 
+def is_ball_appearance_plausible(
+    frame: Any,
+    coordinates: tuple[int, int, int, int],
+    cv2: Any,
+    min_texture_std: float = 25.0,
+    min_saturation: float = 180.0,
+) -> bool:
+    """Reject smooth, weakly saturated pitch marks inside ball boxes."""
+
+    x1, y1, x2, y2 = coordinates
+    height, width = frame.shape[:2]
+    left = max(0, min(width, x1))
+    right = max(0, min(width, x2))
+    top = max(0, min(height, y1))
+    bottom = max(0, min(height, y2))
+    crop = frame[top:bottom, left:right]
+    if crop.size == 0:
+        return False
+
+    gray = cv2.cvtColor(crop, cv2.COLOR_BGR2GRAY)
+    _, gray_std = cv2.meanStdDev(gray)
+    hsv = cv2.cvtColor(crop, cv2.COLOR_BGR2HSV)
+    mean_saturation = cv2.mean(hsv[:, :, 1])[0]
+    return (
+        float(gray_std[0, 0]) >= min_texture_std
+        or float(mean_saturation) >= min_saturation
+    )
+
+
 def _draw_detection(
     frame: Any,
     cv2: Any,
@@ -172,6 +203,52 @@ def _draw_detection(
     cv2.putText(
         frame,
         text,
+        (x1, max(20, y1 - 8)),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.6,
+        color,
+        2,
+        cv2.LINE_AA,
+    )
+
+
+def _draw_dashed_rectangle(
+    frame: Any,
+    cv2: Any,
+    coordinates: tuple[int, int, int, int],
+    color: tuple[int, int, int],
+    thickness: int = 2,
+    dash_length: int = 6,
+) -> None:
+    x1, y1, x2, y2 = coordinates
+    for start in range(x1, x2, dash_length * 2):
+        cv2.line(frame, (start, y1), (min(start + dash_length, x2), y1), color, thickness)
+        cv2.line(frame, (start, y2), (min(start + dash_length, x2), y2), color, thickness)
+    for start in range(y1, y2, dash_length * 2):
+        cv2.line(frame, (x1, start), (x1, min(start + dash_length, y2)), color, thickness)
+        cv2.line(frame, (x2, start), (x2, min(start + dash_length, y2)), color, thickness)
+
+
+def format_ball_label(state: str, confidence: float | None) -> str:
+    """Distinguish measured ball boxes from short-term predictions."""
+
+    if state == "predicted":
+        return "ball predicted"
+    if state == "detected" and confidence is not None:
+        return f"ball {confidence:.2f}"
+    raise ValueError(f"Invalid ball result: state={state}, confidence={confidence}")
+
+
+def _draw_ball_result(frame: Any, cv2: Any, result: BallTrackResult) -> None:
+    x1, y1, x2, y2 = result.bbox
+    color = CLASS_COLORS["ball"]
+    if result.state == "predicted":
+        _draw_dashed_rectangle(frame, cv2, result.bbox, color)
+    else:
+        cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
+    cv2.putText(
+        frame,
+        format_ball_label(result.state, result.confidence),
         (x1, max(20, y1 - 8)),
         cv2.FONT_HERSHEY_SIMPLEX,
         0.6,
@@ -203,6 +280,13 @@ def detect_video(
     model_path: str = "yolo11n.pt",
     player_confidence: float = 0.5,
     ball_confidence: float = 0.18,
+    ball_confirm_hits: int = 2,
+    ball_max_missing_frames: int = 8,
+    ball_max_match_distance: float = 120.0,
+    ball_max_box_side: int = 48,
+    ball_max_aspect_ratio: float = 1.8,
+    ball_min_texture_std: float = 25.0,
+    ball_min_saturation: float = 180.0,
     min_field_green_ratio: float = 0.25,
     image_size: int = 960,
     team_a_color: str = "red",
@@ -255,6 +339,13 @@ def detect_video(
         team_b_goalkeeper_color=team_b_goalkeeper_color,
     )
     role_voter = TrackRoleVoter()
+    ball_tracker = BallTracker(
+        min_confirmed_hits=ball_confirm_hits,
+        max_missing_frames=ball_max_missing_frames,
+        max_match_distance=ball_max_match_distance,
+        max_box_side=ball_max_box_side,
+        max_aspect_ratio=ball_max_aspect_ratio,
+    )
     # ByteTrack uses weak detections to recover existing people; only the
     # user-selected player confidence is used when drawing their boxes.
     results = tracking_model.track(
@@ -285,6 +376,7 @@ def detect_video(
                 "x2",
                 "y2",
                 "confidence",
+                "ball_state",
             ],
         )
         csv_writer.writeheader()
@@ -318,6 +410,7 @@ def detect_video(
                 if not writer.isOpened():
                     raise RuntimeError(f"Could not open output video: {output_path}")
 
+            player_anchors: list[tuple[float, float]] = []
             for box in result.boxes:
                 class_id = int(box.cls[0].item())
                 model_label = str(result.names[class_id])
@@ -337,6 +430,11 @@ def detect_video(
                     min_green_ratio=min_field_green_ratio,
                 ):
                     continue
+
+                player_anchor = detection_anchor(category, (x1, y1, x2, y2))
+                player_anchors.append(
+                    (float(player_anchor[0]), float(player_anchor[1]))
+                )
 
                 track_id = None
                 if category in {"player", "referee"} and box.id is not None:
@@ -367,9 +465,11 @@ def detect_video(
                         "x2": x2,
                         "y2": y2,
                         "confidence": f"{confidence_value:.4f}",
+                        "ball_state": "",
                     }
                 )
 
+            ball_candidates: list[BallCandidate] = []
             if ball_result is not None:
                 for box in ball_result.boxes:
                     confidence_value = float(box.conf[0].item())
@@ -384,27 +484,44 @@ def detect_video(
                         min_green_ratio=min_field_green_ratio,
                     ):
                         continue
-
-                    _draw_detection(
-                        frame,
-                        cv2,
-                        "ball",
-                        confidence_value,
+                    if not is_ball_appearance_plausible(
+                        analysis_frame,
                         (x1, y1, x2, y2),
+                        cv2,
+                        min_texture_std=ball_min_texture_std,
+                        min_saturation=ball_min_saturation,
+                    ):
+                        continue
+
+                    ball_candidates.append(
+                        BallCandidate(
+                            bbox=(x1, y1, x2, y2),
+                            confidence=confidence_value,
+                        )
                     )
-                    csv_writer.writerow(
-                        {
-                            "frame": frame_index,
-                            "time": f"{frame_index / source_fps:.3f}",
-                            "track_id": "",
-                            "role": "ball",
-                            "x1": x1,
-                            "y1": y1,
-                            "x2": x2,
-                            "y2": y2,
-                            "confidence": f"{confidence_value:.4f}",
-                        }
-                    )
+
+            tracked_ball = ball_tracker.update(ball_candidates, player_anchors)
+            if tracked_ball is not None:
+                _draw_ball_result(frame, cv2, tracked_ball)
+                x1, y1, x2, y2 = tracked_ball.bbox
+                csv_writer.writerow(
+                    {
+                        "frame": frame_index,
+                        "time": f"{frame_index / source_fps:.3f}",
+                        "track_id": "",
+                        "role": "ball",
+                        "x1": x1,
+                        "y1": y1,
+                        "x2": x2,
+                        "y2": y2,
+                        "confidence": (
+                            ""
+                            if tracked_ball.confidence is None
+                            else f"{tracked_ball.confidence:.4f}"
+                        ),
+                        "ball_state": tracked_ball.state,
+                    }
+                )
 
             writer.write(frame)
             frames_written += 1
@@ -423,11 +540,18 @@ def detect_video(
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--source", default="data/soccervideo_cfr.mp4")
-    parser.add_argument("--output", default="outputs/v04_team_classification.mp4")
-    parser.add_argument("--csv-output", default="outputs/v04_detections.csv")
+    parser.add_argument("--output", default="outputs/v05_ball_tracking.mp4")
+    parser.add_argument("--csv-output", default="outputs/v05_detections.csv")
     parser.add_argument("--model", default="yolo11n.pt")
     parser.add_argument("--player-conf", type=float, default=0.5)
     parser.add_argument("--ball-conf", type=float, default=0.18)
+    parser.add_argument("--ball-confirm-hits", type=int, default=2)
+    parser.add_argument("--ball-max-missing", type=int, default=8)
+    parser.add_argument("--ball-max-distance", type=float, default=120.0)
+    parser.add_argument("--ball-max-box-side", type=int, default=48)
+    parser.add_argument("--ball-max-aspect-ratio", type=float, default=1.8)
+    parser.add_argument("--ball-min-texture-std", type=float, default=25.0)
+    parser.add_argument("--ball-min-saturation", type=float, default=180.0)
     parser.add_argument("--min-field-green-ratio", type=float, default=0.25)
     parser.add_argument("--imgsz", type=int, default=960)
     color_choices = sorted(SUPPORTED_KIT_COLORS)
@@ -457,6 +581,13 @@ if __name__ == "__main__":
         model_path=args.model,
         player_confidence=args.player_conf,
         ball_confidence=args.ball_conf,
+        ball_confirm_hits=args.ball_confirm_hits,
+        ball_max_missing_frames=args.ball_max_missing,
+        ball_max_match_distance=args.ball_max_distance,
+        ball_max_box_side=args.ball_max_box_side,
+        ball_max_aspect_ratio=args.ball_max_aspect_ratio,
+        ball_min_texture_std=args.ball_min_texture_std,
+        ball_min_saturation=args.ball_min_saturation,
         min_field_green_ratio=args.min_field_green_ratio,
         image_size=args.imgsz,
         team_a_color=args.team_a_color,
