@@ -11,6 +11,7 @@ the previous README.
 | [V0.3](v0.3.md) | Complete | ByteTrack IDs for people | `7e6d346` |
 | [V0.4](v0.4.md) | Complete | Team, goalkeeper, and referee classification | V0.4 implementation commit |
 | [V0.5](v0.5.md) | Complete | Single-ball association and short-gap prediction | V0.5 implementation commit |
+| [V0.6](v0.6.md) | Implemented, local experiment | Manual keyframe homography for a restricted penalty-area clip | V0.6 implementation commit |
 
 ## Development path
 
@@ -25,7 +26,9 @@ V0.4  Classify tracked people by team or referee role
   |
 V0.5  Select one ball track and bridge short detection gaps
   |
-Future  Add homography, trajectories, heatmaps, and statistics
+V0.6  Map a selected continuous shot to a restricted 2D pitch region
+  |
+Future  Add validated trajectories, heatmaps, and statistics
 ```
 
 Generated videos, input footage, and model weights remain local and are ignored

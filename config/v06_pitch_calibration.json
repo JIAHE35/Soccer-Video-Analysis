@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "shot_id": "right_penalty_74_7_86_6",
+  "clip": "data/v06_homography_clip.mp4",
+  "source": "data/soccervideo_cfr.mp4",
+  "source_start_frame": 2241,
+  "frame_count": 357,
+  "fps": 30.0,
+  "image_size": [1280, 588],
+  "pitch_size_m": [105.0, 68.0],
+  "coordinate_convention": "Right goal x=105, far touchline y=0; nominal dimensions, not stadium-survey coordinates",
+  "valid_pitch_polygon": [[88.5, 13.84], [105.0, 13.84], [105.0, 54.16], [88.5, 54.16]],
+  "max_fit_rmse_px": 12.0,
+  "annotation_method": "Manual visible ground-plane line intersections; each point is reviewed using a projected pitch-line overlay",
+  "keyframes": [
+    {"frame": 0, "points": {"penalty_far": [289, 96], "penalty_near": [1002, 377], "six_yard_far": [748, 121], "six_yard_near": [1103, 226], "penalty_spot": [736, 187], "corner_far": [546, 16]}},
+    {"frame": 30, "points": {"penalty_far": [267, 112], "penalty_near": [1003, 400], "six_yard_far": [742, 137], "arc_far": [439, 175], "arc_near": [689, 277], "corner_far": [535, 25], "goalpost_far": [985, 147]}},
+    {"frame": 60, "points": {"penalty_near": [984, 493], "six_yard_far": [670, 176], "arc_far": [302, 231], "arc_near": [603, 347], "corner_far": [415, 51], "goalpost_far": [954, 193], "goalpost_near": [1139, 240]}},
+    {"frame": 90, "points": {"penalty_near": [913, 575], "six_yard_near": [1044, 360], "arc_near": [479, 409], "corner_far": [261, 70], "goalpost_far": [885, 230], "goalpost_near": [1098, 283]}},
+    {"frame": 120, "points": {"penalty_near": [1044, 584], "six_yard_far": [683, 216], "arc_far": [255, 277], "arc_near": [617, 412], "corner_far": [395, 73], "goalpost_far": [1013, 233], "penalty_spot": [666, 312]}},
+    {"frame": 150, "points": {"penalty_far": [176, 189], "six_yard_far": [833, 229], "arc_far": [412, 284], "arc_near": [770, 420], "penalty_spot": [818, 317], "corner_far": [548, 75]}},
+    {"frame": 180, "points": {"penalty_far": [226, 191], "six_yard_far": [877, 224], "arc_far": [454, 278], "arc_near": [803, 414], "penalty_spot": [859, 313], "corner_far": [593, 75]}},
+    {"frame": 210, "points": {"penalty_far": [227, 187], "six_yard_far": [877, 224], "arc_far": [454, 277], "arc_near": [820, 421], "penalty_spot": [855, 312], "corner_far": [593, 75]}},
+    {"frame": 240, "points": {"six_yard_far": [676, 214], "arc_far": [242, 271], "arc_near": [600, 412], "penalty_spot": [665, 303], "corner_far": [391, 69], "goalpost_far": [1007, 225]}},
+    {"frame": 270, "points": {"six_yard_near": [1008, 359], "arc_near": [437, 410], "corner_far": [204, 67], "goalpost_far": [844, 227], "goalpost_near": [1057, 278]}},
+    {"frame": 300, "points": {"six_yard_near": [1007, 379], "arc_near": [421, 426], "corner_far": [193, 74], "goalpost_far": [843, 238], "goalpost_near": [1060, 295]}},
+    {"frame": 330, "points": {"six_yard_near": [978, 377], "arc_near": [387, 434], "corner_far": [165, 76], "goalpost_far": [814, 239], "goalpost_near": [1035, 297]}},
+    {"frame": 356, "points": {"six_yard_far": [383, 234], "six_yard_near": [894, 403], "arc_near": [277, 446], "goalpost_far": [711, 252], "goalpost_near": [926, 309]}}
+  ]
+}

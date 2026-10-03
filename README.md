@@ -1,8 +1,9 @@
 # Soccer Video Analysis
 
-Version 0.5 tracks people, classifies their match roles from kit colors, and
-maintains one short-term football track. It filters likely off-field detections
-and writes an annotated MP4 plus per-detection CSV data.
+Version 0.6 adds a restricted, manually calibrated pitch mapping experiment on
+an 11.9-second continuous shot. It reuses the V0.5 people and ball detections,
+then maps only objects inside the right penalty area to a synchronized 2D view.
+This is a local demonstration, not automatic full-match camera calibration.
 
 ## Version history
 
@@ -16,6 +17,7 @@ erase the reasoning, parameters, results, and limitations of earlier versions.
 | V0.3 | Complete | ByteTrack IDs for people and independent ball detection | [V0.3 README](docs/versions/v0.3.md) |
 | V0.4 | Complete | Team, goalkeeper, and referee classification | [V0.4 README](docs/versions/v0.4.md) |
 | V0.5 | Complete | Ball association and short-gap prediction | [V0.5 README](docs/versions/v0.5.md) |
+| V0.6 | Implemented, local experiment | Keyframe homography and restricted 2D pitch mapping | [V0.6 README](docs/versions/v0.6.md) |
 
 The complete milestone index is available in
 [docs/versions/README.md](docs/versions/README.md). The root README describes
@@ -29,7 +31,50 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-## Run V0.5
+## Run V0.6
+
+Install FFmpeg as well as the Python requirements. The selected interval is
+**74.7 seconds to 86.6 seconds**, using the original video's timeline (not the
+broadcast match clock). Extract the CFR source's frames 2241 through 2597:
+
+```bash
+ffmpeg -n -i data/soccervideo_cfr.mp4 \
+  -vf "trim=start_frame=2241:end_frame=2598,setpts=PTS-STARTPTS" \
+  -an -c:v libx264 -pix_fmt yuv420p -movflags +faststart \
+  data/v06_homography_clip.mp4
+```
+
+The local clip has already been extracted. With the full-source V0.5 CSV
+available, generate the V0.6 output and inspect the calibration:
+
+```bash
+python src/map_pitch.py
+python src/calibrate.py --review
+```
+
+Outputs:
+
+- `outputs/v06_pitch_mapping.mp4`: detected objects and synchronized 2D map.
+- `outputs/v06_pitch_mapping.csv`: original detections plus mapping coordinates,
+  validity, original frame/time, and observed/predicted ball state.
+- `outputs/v06_pitch_mapping.json`: input hashes, counts, calibration fit
+  residuals, and limitations.
+- `outputs/v06_calibration_review.jpg`: projected lines at keyframes and
+  intermediate frames for visual inspection.
+
+The map uses 13 manual keyframes and interpolated image-space reference points
+to compensate for camera movement. People use the bottom-center of their boxes;
+balls use box centers. Objects outside the configured penalty-area polygon are
+kept in the CSV with empty pitch coordinates, not silently clamped into the map.
+Pitch dimensions are nominally 105 x 68 m; airborne balls are ground-plane
+projections, not real ground positions. See the
+[V0.6 experiment record](docs/versions/v0.6.md) for results and limitations.
+
+Output files are protected by default. Regenerate explicitly with
+`python src/map_pitch.py --overwrite`, or choose a new `--output` filename.
+V0.5 code and previous videos are unchanged.
+
+## Run The Detection Stage (V0.5)
 
 The project uses the constant-frame-rate input `data/soccervideo_cfr.mp4` by
 default. For a variable-frame-rate source, convert a local copy first:
