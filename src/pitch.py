@@ -47,18 +47,22 @@ def draw_calibration_overlay(frame: np.ndarray, matrix: np.ndarray, roi) -> np.n
     return canvas
 
 
-def draw_pitch_panel(height: int, width: int, mapped_rows: list[dict], roi,
-                     clip_time: float, source_time: float) -> np.ndarray:
-    panel = np.full((height, width, 3), (28, 33, 31), dtype=np.uint8)
-    cv2.putText(panel, "V0.6 | PITCH MAPPING", (24, 32), cv2.FONT_HERSHEY_SIMPLEX, .65, (235, 240, 238), 1, cv2.LINE_AA)
-    cv2.putText(panel, f"Clip {clip_time:05.2f}s | Source {source_time:05.2f}s", (24, 56), cv2.FONT_HERSHEY_SIMPLEX, .45, (172, 186, 178), 1, cv2.LINE_AA)
+def pitch_to_pixels(points, height: int, width: int) -> np.ndarray:
     scale = min((height - 174) / 68.0, (width - 64) / 55.0)
     origin_x = int((width - 52.5 * scale) / 2)
-    origin_y = 80
+    return np.round((np.asarray(points, float) - [52.5, 0]) * scale + [origin_x, 80]).astype(np.int32)
+
+
+def draw_pitch_panel(height: int, width: int, mapped_rows: list[dict], roi,
+                     clip_time: float, source_time: float, *, trails=(),
+                     title="V0.6 | PITCH MAPPING", subtitle=None) -> np.ndarray:
+    panel = np.full((height, width, 3), (28, 33, 31), dtype=np.uint8)
+    cv2.putText(panel, title, (24, 32), cv2.FONT_HERSHEY_SIMPLEX, .65, (235, 240, 238), 1, cv2.LINE_AA)
+    subtitle = subtitle if subtitle is not None else f"Clip {clip_time:05.2f}s | Source {source_time:05.2f}s"
+    cv2.putText(panel, subtitle, (24, 56), cv2.FONT_HERSHEY_SIMPLEX, .45, (172, 186, 178), 1, cv2.LINE_AA)
 
     def to_pixels(points):
-        points = np.asarray(points, float)
-        return np.round((points - [52.5, 0]) * scale + [origin_x, origin_y]).astype(np.int32)
+        return pitch_to_pixels(points, height, width)
 
     outer = to_pixels([[52.5, 0], [105, 0], [105, 68], [52.5, 68]])
     cv2.fillConvexPoly(panel, outer, (48, 76, 52))
@@ -67,6 +71,20 @@ def draw_pitch_panel(height: int, width: int, mapped_rows: list[dict], roi,
         cv2.polylines(panel, [to_pixels(line)], False, (190, 208, 193), 1, cv2.LINE_AA)
     cv2.circle(panel, tuple(to_pixels([[94, 34]])[0]), 2, (220, 230, 220), -1)
     cv2.polylines(panel, [to_pixels([[105, 30.34], [107, 30.34], [107, 37.66], [105, 37.66]])], False, (200, 218, 205), 1)
+    for trail in trails:
+        points = trail["points"]
+        color = ROLE_COLORS.get(trail["role"], ROLE_COLORS["unknown"])
+        for index, (a, b) in enumerate(zip(points, points[1:])):
+            start, end = to_pixels([[a["x"], a["y"]], [b["x"], b["y"]]])
+            shade = tuple(int(value * (.35 + .65 * (index + 1) / max(1, len(points) - 1))) for value in color)
+            if trail["role"] == "ball" and "predicted" in (a["state"], b["state"]):
+                distance = max(1, int(np.linalg.norm(end - start)))
+                for i in range(0, distance, 7):
+                    p = np.round(start + (end - start) * i / distance).astype(int)
+                    q = np.round(start + (end - start) * min(i + 3, distance) / distance).astype(int)
+                    cv2.line(panel, tuple(p), tuple(q), shade, 1, cv2.LINE_AA)
+            else:
+                cv2.line(panel, tuple(start), tuple(end), shade, 2, cv2.LINE_AA)
     # Draw the ball last so person markers cannot conceal it.
     valid_rows = [row for row in mapped_rows if row["homography_valid"] == "true"]
     for row in sorted(valid_rows, key=lambda row: row["role"] == "ball"):

@@ -12,6 +12,7 @@ the previous README.
 | [V0.4](v0.4.md) | Complete | Team, goalkeeper, and referee classification | V0.4 implementation commit |
 | [V0.5](v0.5.md) | Complete | Single-ball association and short-gap prediction | V0.5 implementation commit |
 | [V0.6](v0.6.md) | Implemented, local experiment | Manual keyframe homography for a restricted penalty-area clip | V0.6 implementation commit |
+| [V0.7](v0.7.md) | Implemented, local experiment | Local track fragments, team position heatmaps, and data-quality statistics | V0.7 implementation commit |
 
 ## Development path
 
@@ -28,7 +29,9 @@ V0.5  Select one ball track and bridge short detection gaps
   |
 V0.6  Map a selected continuous shot to a restricted 2D pitch region
   |
-Future  Add validated trajectories, heatmaps, and statistics
+V0.7  Visualize local fragments and position distributions; report data quality
+  |
+Future  Validate geometry and improve identity continuity before metric analytics
 ```
 
 Generated videos, input footage, and model weights remain local and are ignored

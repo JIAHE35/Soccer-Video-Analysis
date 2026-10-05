@@ -1,9 +1,9 @@
 # Soccer Video Analysis
 
-Version 0.6 adds a restricted, manually calibrated pitch mapping experiment on
-an 11.9-second continuous shot. It reuses the V0.5 people and ball detections,
-then maps only objects inside the right penalty area to a synchronized 2D view.
-This is a local demonstration, not automatic full-match camera calibration.
+Version 0.7 adds short local trajectories, two-team observed-position heatmaps,
+and data-quality statistics to the V0.6 manually calibrated 11.9-second clip.
+It reuses existing detection and mapping CSVs without rerunning YOLO. This is
+an exploratory right-penalty-area experiment, not full-match tactical analysis.
 
 ## Version history
 
@@ -18,10 +18,19 @@ erase the reasoning, parameters, results, and limitations of earlier versions.
 | V0.4 | Complete | Team, goalkeeper, and referee classification | [V0.4 README](docs/versions/v0.4.md) |
 | V0.5 | Complete | Ball association and short-gap prediction | [V0.5 README](docs/versions/v0.5.md) |
 | V0.6 | Implemented, local experiment | Keyframe homography and restricted 2D pitch mapping | [V0.6 README](docs/versions/v0.6.md) |
+| V0.7 | Implemented, local experiment | Local track fragments, observed-position heatmaps, and quality summary | [V0.7 README](docs/versions/v0.7.md) |
 
 The complete milestone index is available in
 [docs/versions/README.md](docs/versions/README.md). The root README describes
 the latest implemented version only.
+
+## Project Reports
+
+The complete V0.1-V0.7 engineering history is also archived as standalone
+LaTeX source: [English report](docs/paper/soccer_project_report_en.tex) and
+[Chinese report](docs/paper/soccer_project_report.tex). Both retain the
+October 3, 2026 experiment snapshot, including results, formulas, heatmap data,
+and limitations. These source-only reports have not been compilation-verified.
 
 ## Setup
 
@@ -31,7 +40,50 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-## Run V0.6
+## Run V0.7
+
+After generating the V0.6 files below, run:
+
+```bash
+python src/analytics.py
+```
+
+Outputs:
+
+- `outputs/v07_local_trajectories.mp4`: detections beside a synchronized 2D map
+  with up to two seconds of contiguous trajectory history.
+- `outputs/v07_team_heatmaps.png`: both teams' accepted position samples,
+  including assigned goalkeepers, using a shared color scale.
+- `outputs/v07_summary.json`: track-fragment durations, per-frame counts, ball
+  coverage, exclusions, input hashes, settings, and limitations.
+
+The analysis reads `outputs/v06_pitch_mapping.csv` and its JSON provenance
+report. The clip and calibration hashes must match that report. Missing frames,
+invalid mappings, duplicate same-frame IDs, role changes, and large nominal
+position jumps break trajectories rather than being bridged. Ball predictions
+remain distinct from detections. Heatmaps exclude balls, referees, unknown
+roles, invalid positions, and repeated same-frame IDs.
+
+Heatmap units are cumulative **person-seconds per nominal 1 m cell**; totals may
+exceed the clip duration because several people are observed simultaneously.
+These are not possession percentages, running distances, or speeds. The map is
+still restricted to the V0.6 penalty-area polygon. See
+[V0.7's experiment record](docs/versions/v0.7.md) for interpretation and results.
+
+Optional settings:
+
+```bash
+python src/analytics.py --trail-seconds 2 \
+  --max-person-step-m 1.5 --max-ball-step-m 5 \
+  --output-dir outputs/v07_alternative
+```
+
+The jump thresholds are visualization guards per frame in assumed pitch
+coordinates, not validated physical speed limits. Existing files are protected;
+use another output directory or explicitly pass `--overwrite` to regenerate
+only the three V0.7 files. V0.5 and V0.6 outputs are not replaced.
+
+## Generate The Mapping Stage (V0.6)
 
 Install FFmpeg as well as the Python requirements. The selected interval is
 **74.7 seconds to 86.6 seconds**, using the original video's timeline (not the

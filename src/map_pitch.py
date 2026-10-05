@@ -83,7 +83,8 @@ def validate_video(capture, calibration: PitchCalibration) -> None:
         raise ValueError("Video dimensions, frame count or FPS do not match calibration")
 
 
-def draw_detections(frame: np.ndarray, rows: list[dict]) -> np.ndarray:
+def draw_detections(frame: np.ndarray, rows: list[dict],
+                    caption: str = "V0.6 | V0.5 detections + local calibration") -> np.ndarray:
     frame = frame.copy()
     height, width = frame.shape[:2]
     for row in rows:
@@ -109,7 +110,7 @@ def draw_detections(frame: np.ndarray, rows: list[dict]) -> np.ndarray:
         text_width = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, .42, 1)[0][0]
         cv2.putText(frame, label, (int(min(x1, width - text_width - 2)), int(max(14, y1 - 5))),
                     cv2.FONT_HERSHEY_SIMPLEX, .42, color, 1, cv2.LINE_AA)
-    cv2.putText(frame, "V0.6 | V0.5 detections + local calibration", (130, 575),
+    cv2.putText(frame, caption, (min(130, width // 4), height - 13),
                 cv2.FONT_HERSHEY_SIMPLEX, .45, (235, 235, 235), 1, cv2.LINE_AA)
     return frame
 

@@ -1,0 +1,1150 @@
+% !TEX program = xelatex
+% UTF-8 standalone source. Compile with XeLaTeX (or LuaLaTeX).
+% This file needs no external .bib, image, CSV, or project files.
+% Data snapshot: local V0.7 artifacts, reviewed on 2026-10-03.
+\documentclass[UTF8,fontset=fandol,11pt,a4paper]{ctexart}
+\usepackage{geometry}
+\geometry{left=24mm,right=24mm,top=23mm,bottom=23mm}
+\usepackage{amsmath,amssymb,bm}
+\usepackage{booktabs,array,tabularx,longtable}
+\usepackage{xcolor,graphicx}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning}
+\usepackage{listings}
+\usepackage{xurl}
+\usepackage[unicode,hidelinks]{hyperref}
+
+\hypersetup{
+  pdftitle={从目标检测到局部轨迹统计的足球视频分析原型},
+  pdfauthor={JIAHE35},
+  pdfsubject={Soccer-Video-Analysis V0.1--V0.7 项目结题报告}
+}
+\ctexset{
+  section={format=\Large\bfseries},
+  subsection={format=\large\bfseries}
+}
+\linespread{1.16}
+\setlength{\parindent}{2em}
+\setlength{\parskip}{0.25em}
+\renewcommand{\arraystretch}{1.16}
+\setlength{\tabcolsep}{5pt}
+\setlength{\emergencystretch}{2em}
+\newcolumntype{L}{>{\raggedright\arraybackslash}X}
+\newcommand{\code}[1]{\texttt{\detokenize{#1}}}
+\newcommand{\ROI}{\mathcal{R}}
+\newcommand{\HeatMax}{2.566667}
+\definecolor{heatLow}{RGB}{35,80,160}
+\definecolor{heatMid}{RGB}{246,217,74}
+\definecolor{heatHigh}{RGB}{217,63,49}
+\definecolor{pitchPaper}{RGB}{244,247,244}
+\definecolor{roiPaper}{RGB}{225,237,226}
+\definecolor{observedBlue}{RGB}{45,102,166}
+\definecolor{predictedGold}{RGB}{238,190,62}
+\lstset{
+  basicstyle=\ttfamily\footnotesize,
+  columns=fullflexible,
+  breaklines=true,
+  keepspaces=true,
+  showstringspaces=false,
+  frame=single,
+  rulecolor=\color{black!20},
+  xleftmargin=0.5em,
+  xrightmargin=0.5em,
+  aboveskip=0.8em,
+  belowskip=0.8em
+}
+
+% Heat values are cumulative accepted person-seconds in nominal 1 m cells.
+% Both panels use the same maximum. This palette is for the paper, not a
+% byte-for-byte reproduction of the OpenCV PNG's color map.
+\newcommand{\HeatCell}[3]{%
+  \pgfmathtruncatemacro{\heatpct}{min(100,round(100*#3/\HeatMax))}%
+  \ifnum\heatpct<50
+    \pgfmathtruncatemacro{\heatblend}{2*\heatpct}%
+    \colorlet{heatcell}{heatMid!\heatblend!heatLow}%
+  \else
+    \pgfmathtruncatemacro{\heatblend}{2*\heatpct-100}%
+    \colorlet{heatcell}{heatHigh!\heatblend!heatMid}%
+  \fi
+  \fill[heatcell] (#1,#2) rectangle ({#1+1},{#2+1});%
+}
+
+% BEGIN GENERATED HEAT DATA
+\newcommand{\TeamAHeatCells}{
+\HeatCell{88}{42}{0.166667}
+\HeatCell{88}{43}{0.033333}
+\HeatCell{89}{21}{0.166667}
+\HeatCell{89}{22}{0.066667}
+\HeatCell{89}{42}{0.433333}
+\HeatCell{90}{20}{0.100000}
+\HeatCell{90}{21}{0.100000}
+\HeatCell{90}{36}{0.566667}
+\HeatCell{90}{41}{0.333333}
+\HeatCell{91}{18}{0.066667}
+\HeatCell{91}{19}{0.100000}
+\HeatCell{91}{20}{0.100000}
+\HeatCell{91}{35}{1.000000}
+\HeatCell{91}{36}{0.966667}
+\HeatCell{91}{37}{0.133333}
+\HeatCell{91}{40}{0.033333}
+\HeatCell{91}{41}{0.233333}
+\HeatCell{92}{16}{0.200000}
+\HeatCell{92}{17}{0.300000}
+\HeatCell{92}{18}{0.100000}
+\HeatCell{92}{35}{0.366667}
+\HeatCell{92}{36}{0.500000}
+\HeatCell{92}{37}{0.333333}
+\HeatCell{92}{38}{0.233333}
+\HeatCell{92}{40}{0.333333}
+\HeatCell{93}{14}{0.066667}
+\HeatCell{93}{15}{0.266667}
+\HeatCell{93}{16}{0.066667}
+\HeatCell{93}{29}{0.633333}
+\HeatCell{93}{30}{1.000000}
+\HeatCell{93}{32}{0.100000}
+\HeatCell{93}{34}{0.033333}
+\HeatCell{93}{38}{0.066667}
+\HeatCell{93}{39}{0.300000}
+\HeatCell{93}{40}{0.200000}
+\HeatCell{94}{25}{0.033333}
+\HeatCell{94}{29}{0.366667}
+\HeatCell{94}{30}{1.366667}
+\HeatCell{94}{31}{0.366667}
+\HeatCell{94}{32}{1.333333}
+\HeatCell{94}{33}{0.133333}
+\HeatCell{94}{34}{0.033333}
+\HeatCell{94}{35}{0.133333}
+\HeatCell{95}{29}{0.100000}
+\HeatCell{95}{30}{0.166667}
+\HeatCell{95}{31}{0.133333}
+\HeatCell{95}{32}{0.266667}
+\HeatCell{95}{33}{0.933333}
+\HeatCell{95}{34}{0.733333}
+\HeatCell{96}{29}{0.333333}
+\HeatCell{96}{30}{0.933333}
+\HeatCell{96}{31}{0.300000}
+\HeatCell{96}{32}{0.333333}
+\HeatCell{96}{33}{2.566667}
+\HeatCell{96}{34}{0.133333}
+\HeatCell{97}{28}{0.233333}
+\HeatCell{97}{29}{0.533333}
+\HeatCell{97}{30}{0.333333}
+\HeatCell{97}{31}{0.066667}
+\HeatCell{97}{32}{0.700000}
+\HeatCell{97}{33}{0.400000}
+\HeatCell{97}{34}{0.366667}
+\HeatCell{97}{35}{0.300000}
+\HeatCell{97}{36}{0.266667}
+\HeatCell{97}{37}{0.266667}
+\HeatCell{98}{31}{0.133333}
+\HeatCell{98}{33}{0.133333}
+\HeatCell{98}{34}{2.300000}
+\HeatCell{98}{35}{1.600000}
+\HeatCell{98}{36}{0.266667}
+\HeatCell{98}{37}{0.233333}
+\HeatCell{98}{38}{0.133333}
+\HeatCell{98}{39}{0.200000}
+\HeatCell{98}{40}{0.066667}
+\HeatCell{99}{29}{0.133333}
+\HeatCell{99}{31}{0.100000}
+\HeatCell{99}{34}{0.066667}
+\HeatCell{99}{35}{0.333333}
+\HeatCell{99}{36}{0.066667}
+\HeatCell{99}{37}{0.100000}
+\HeatCell{99}{38}{0.166667}
+\HeatCell{99}{39}{0.133333}
+\HeatCell{99}{40}{0.133333}
+\HeatCell{100}{27}{0.033333}
+\HeatCell{100}{28}{0.100000}
+\HeatCell{100}{29}{0.066667}
+\HeatCell{100}{30}{0.033333}
+\HeatCell{100}{31}{0.066667}
+\HeatCell{100}{32}{0.333333}
+\HeatCell{100}{33}{0.066667}
+\HeatCell{100}{34}{0.133333}
+\HeatCell{100}{35}{0.200000}
+\HeatCell{100}{36}{0.100000}
+\HeatCell{100}{39}{0.200000}
+\HeatCell{100}{40}{0.166667}
+\HeatCell{100}{41}{0.133333}
+\HeatCell{100}{42}{0.133333}
+\HeatCell{101}{25}{0.100000}
+\HeatCell{101}{26}{0.133333}
+\HeatCell{101}{28}{0.066667}
+\HeatCell{101}{30}{0.066667}
+\HeatCell{101}{31}{0.166667}
+\HeatCell{101}{33}{0.033333}
+\HeatCell{102}{24}{0.033333}
+\HeatCell{102}{34}{0.300000}
+\HeatCell{102}{35}{0.066667}
+\HeatCell{103}{27}{0.033333}
+\HeatCell{103}{34}{1.033333}
+\HeatCell{103}{35}{0.200000}
+\HeatCell{104}{26}{0.133333}
+\HeatCell{104}{27}{0.066667}
+}
+
+\newcommand{\TeamBHeatCells}{
+\HeatCell{88}{30}{0.166667}
+\HeatCell{88}{31}{0.633333}
+\HeatCell{88}{46}{0.200000}
+\HeatCell{89}{28}{0.033333}
+\HeatCell{89}{29}{0.066667}
+\HeatCell{89}{30}{0.433333}
+\HeatCell{89}{31}{1.333333}
+\HeatCell{89}{45}{0.266667}
+\HeatCell{89}{46}{0.233333}
+\HeatCell{90}{25}{0.166667}
+\HeatCell{90}{26}{0.166667}
+\HeatCell{90}{27}{0.600000}
+\HeatCell{90}{28}{0.500000}
+\HeatCell{90}{37}{0.133333}
+\HeatCell{90}{44}{0.266667}
+\HeatCell{90}{45}{0.233333}
+\HeatCell{91}{22}{0.200000}
+\HeatCell{91}{23}{0.100000}
+\HeatCell{91}{24}{0.300000}
+\HeatCell{91}{25}{0.133333}
+\HeatCell{91}{28}{0.266667}
+\HeatCell{91}{37}{0.166667}
+\HeatCell{91}{43}{0.300000}
+\HeatCell{91}{44}{0.066667}
+\HeatCell{92}{16}{0.133333}
+\HeatCell{92}{17}{0.066667}
+\HeatCell{92}{19}{0.133333}
+\HeatCell{92}{20}{0.166667}
+\HeatCell{92}{21}{0.333333}
+\HeatCell{92}{22}{0.033333}
+\HeatCell{92}{27}{0.333333}
+\HeatCell{92}{37}{0.066667}
+\HeatCell{92}{38}{0.200000}
+\HeatCell{92}{42}{0.700000}
+\HeatCell{92}{43}{0.133333}
+\HeatCell{93}{17}{0.466667}
+\HeatCell{93}{18}{0.266667}
+\HeatCell{93}{19}{0.033333}
+\HeatCell{93}{25}{0.233333}
+\HeatCell{93}{26}{1.100000}
+\HeatCell{93}{27}{0.200000}
+\HeatCell{93}{35}{0.066667}
+\HeatCell{93}{38}{0.200000}
+\HeatCell{93}{39}{0.033333}
+\HeatCell{93}{41}{0.100000}
+\HeatCell{93}{42}{1.966667}
+\HeatCell{93}{43}{0.233333}
+\HeatCell{94}{16}{0.033333}
+\HeatCell{94}{17}{0.066667}
+\HeatCell{94}{24}{0.300000}
+\HeatCell{94}{25}{0.666667}
+\HeatCell{94}{35}{0.033333}
+\HeatCell{94}{38}{0.100000}
+\HeatCell{94}{39}{0.100000}
+\HeatCell{94}{41}{0.800000}
+\HeatCell{94}{42}{1.266667}
+\HeatCell{95}{24}{0.533333}
+\HeatCell{95}{31}{0.333333}
+\HeatCell{95}{35}{0.100000}
+\HeatCell{95}{36}{0.066667}
+\HeatCell{95}{38}{0.100000}
+\HeatCell{95}{39}{0.166667}
+\HeatCell{96}{23}{0.466667}
+\HeatCell{96}{24}{0.033333}
+\HeatCell{96}{29}{0.066667}
+\HeatCell{96}{30}{2.400000}
+\HeatCell{96}{31}{0.466667}
+\HeatCell{96}{32}{0.033333}
+\HeatCell{96}{36}{0.033333}
+\HeatCell{96}{38}{0.100000}
+\HeatCell{96}{39}{0.100000}
+\HeatCell{97}{22}{0.066667}
+\HeatCell{97}{23}{0.166667}
+\HeatCell{97}{28}{0.100000}
+\HeatCell{97}{29}{0.533333}
+\HeatCell{97}{30}{0.433333}
+\HeatCell{97}{31}{0.100000}
+\HeatCell{97}{33}{0.066667}
+\HeatCell{97}{36}{0.033333}
+\HeatCell{97}{38}{0.266667}
+\HeatCell{98}{22}{0.400000}
+\HeatCell{98}{27}{0.066667}
+\HeatCell{98}{28}{1.033333}
+\HeatCell{98}{29}{0.600000}
+\HeatCell{98}{30}{1.133333}
+\HeatCell{98}{31}{0.933333}
+\HeatCell{98}{32}{0.533333}
+\HeatCell{98}{33}{0.966667}
+\HeatCell{98}{38}{0.366667}
+\HeatCell{99}{21}{0.166667}
+\HeatCell{99}{25}{0.033333}
+\HeatCell{99}{26}{0.200000}
+\HeatCell{99}{27}{0.133333}
+\HeatCell{99}{28}{0.966667}
+\HeatCell{99}{29}{0.600000}
+\HeatCell{99}{30}{1.000000}
+\HeatCell{99}{31}{1.333333}
+\HeatCell{99}{32}{1.200000}
+\HeatCell{99}{33}{0.900000}
+\HeatCell{99}{36}{0.100000}
+\HeatCell{99}{37}{2.000000}
+\HeatCell{99}{38}{0.166667}
+\HeatCell{100}{21}{0.233333}
+\HeatCell{100}{25}{0.033333}
+\HeatCell{100}{27}{0.200000}
+\HeatCell{100}{28}{0.266667}
+\HeatCell{100}{30}{0.066667}
+\HeatCell{100}{31}{0.066667}
+\HeatCell{100}{32}{2.233333}
+\HeatCell{100}{33}{0.666667}
+\HeatCell{100}{36}{0.500000}
+\HeatCell{100}{37}{0.266667}
+\HeatCell{100}{38}{0.433333}
+\HeatCell{100}{39}{0.066667}
+\HeatCell{101}{21}{0.166667}
+\HeatCell{101}{25}{0.100000}
+\HeatCell{101}{26}{0.066667}
+\HeatCell{101}{29}{0.033333}
+\HeatCell{101}{32}{0.666667}
+\HeatCell{101}{33}{0.200000}
+\HeatCell{101}{35}{0.033333}
+\HeatCell{101}{36}{0.466667}
+\HeatCell{101}{38}{1.633333}
+\HeatCell{101}{39}{0.066667}
+\HeatCell{102}{25}{0.033333}
+\HeatCell{102}{33}{0.333333}
+\HeatCell{102}{34}{0.500000}
+\HeatCell{102}{35}{0.433333}
+\HeatCell{102}{36}{0.100000}
+\HeatCell{102}{38}{1.766667}
+\HeatCell{103}{21}{0.066667}
+\HeatCell{103}{32}{0.100000}
+\HeatCell{103}{33}{2.333333}
+\HeatCell{103}{34}{0.200000}
+\HeatCell{103}{35}{0.066667}
+\HeatCell{103}{36}{0.033333}
+\HeatCell{104}{30}{0.033333}
+\HeatCell{104}{31}{0.100000}
+\HeatCell{104}{32}{0.166667}
+\HeatCell{104}{33}{0.433333}
+\HeatCell{104}{35}{0.166667}
+\HeatCell{104}{36}{1.066667}
+}
+
+% END GENERATED HEAT DATA
+
+\newcommand{\PitchHeatPanel}[2]{%
+  \begin{tikzpicture}[x=0.085cm,y=-0.085cm]
+    \fill[pitchPaper] (52.5,0) rectangle (105,68);
+    \fill[roiPaper] (88.5,13.84) rectangle (105,54.16);
+    \begin{scope}
+      \clip (88.5,13.84) rectangle (105,54.16);
+      #2
+    \end{scope}
+    \draw[black!60,line width=0.45pt] (52.5,0) rectangle (105,68);
+    \draw[black!60,line width=0.45pt]
+      (105,13.84)--(88.5,13.84)--(88.5,54.16)--(105,54.16);
+    \draw[black!60,line width=0.45pt]
+      (105,24.84)--(99.5,24.84)--(99.5,43.16)--(105,43.16);
+    \draw[black!60,line width=0.45pt]
+      (105,30.34)--(107,30.34)--(107,37.66)--(105,37.66);
+    \draw[black!60,line width=0.45pt,domain=126.95:233.05,samples=45]
+      plot ({94+9.15*cos(\x)},{34+9.15*sin(\x)});
+    \draw[black!60,line width=0.45pt,domain=-90:90,samples=45]
+      plot ({52.5+9.15*cos(\x)},{34+9.15*sin(\x)});
+    \fill[black!60] (94,34) circle[radius=0.35];
+    \node[anchor=south west,font=\small\bfseries] at (52.5,-2) {#1};
+  \end{tikzpicture}%
+}
+
+\title{\textbf{从目标检测到局部轨迹统计的足球视频分析原型}\\
+  \large 基于 YOLO11 与 ByteTrack 的 V0.1--V0.7 迭代工程实践}
+\author{JIAHE35\\
+  \small 独立项目：Soccer-Video-Analysis\\
+  \small \url{https://github.com/JIAHE35/Soccer-Video-Analysis}}
+\date{2026 年 10 月 3 日\\\small 本地项目结题与源代码存档稿}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+本文记录一个个人足球视频分析原型从基础检测到局部空间统计的完整开发过程。
+系统以预训练 YOLO11n 为检测器，通过草地邻域过滤减少场外人员标注，
+使用 ByteTrack 建立人员临时 ID，并以比赛相关的球衣颜色与时间投票区分队伍、
+守门员、裁判和未知角色。足球采用独立检测与短时关联，不分配人员式 ID，
+并将模型检测与缺失帧预测分别记录。
+考虑到输入为移动摄像机拍摄的足球集锦，项目没有对整场视频采用固定单应矩阵，
+而是选取 11.9 秒连续镜头，在 13 个手工关键帧上建立禁区局部映射。
+最终生成二维短轨迹、两队位置热力图和数据质量报告。
+该片段共有 357 帧、4,281 条目标记录，其中 2,904 条位于有效映射区域。
+足球检测、预测和缺失分别覆盖 146、78 和 133 帧。
+项目的 80 个自动化测试通过。
+上述结果证明工程流程能够运行并保留可追溯数据，
+但不构成检测准确率、真实运动速度、控球率或整场战术分析的验证。
+本文的主要价值在于渐进式实现、数据语义区分、适用范围约束及局限性的明确记录。
+\end{abstract}
+
+\noindent\textbf{关键词：}足球视频分析；YOLO11；ByteTrack；单应性；短时轨迹；
+位置热力图；可复现工程；数据质量
+
+\subsection*{English Abstract}
+This report documents an incremental football-video analysis prototype developed
+through versions V0.1--V0.7. A pretrained YOLO11n detector is combined with
+field-support filtering, temporary person tracking, match-specific kit-color
+classification, and independent short-gap ball association. A manually calibrated
+11.9-second continuous shot is mapped onto a restricted penalty-area region
+using 13 keyframes. The final stage produces short contiguous trajectories,
+shared-scale team position heatmaps, and a data-quality summary. Of 4,281
+object records in 357 frames, 2,904 fall inside the mapping region. Ball
+detections, predictions, and missing outputs cover 146, 78, and 133 frames,
+respectively. Eighty automated tests pass. These results establish an operational
+and traceable engineering pipeline, not ground-truth detection accuracy,
+physical motion estimates, possession statistics, or full-match tactical validity.
+
+\tableofcontents
+\clearpage
+
+\section{引言}
+
+足球视频包含球员、裁判、守门员、足球、看台与广告牌等多种视觉信息。
+对个人学习项目而言，直接构建完整比赛分析系统容易同时引入检测、追踪、身份识别、
+摄像机几何和统计解释等问题，导致难以定位错误来源。
+本项目采用逐版本迭代方式：先完成视频输入、逐帧检测、标注和视频输出的最小闭环，
+随后根据实际观察到的问题引入相应模块。
+
+最初的目标是让一段足球视频成功经过预训练检测器并输出带检测框的视频。
+之后依次处理观众误标、人员 ID、队伍与角色分类、足球漏检、
+局部二维映射以及轨迹和位置分布展示。
+每一版本均保留独立说明，避免最新 README 覆盖此前的设计原因与实验边界。
+
+本文是工程结题报告，而非提出新检测网络或追踪算法的研究论文。
+其贡献主要包括：
+\begin{enumerate}
+  \item 实现从视频到结构化目标记录、再到局部二维分析的可运行流程；
+  \item 明确区分人员临时 ID、足球模型检测、足球预测及无效映射；
+  \item 根据集锦与移动镜头条件限制几何分析范围，避免过度解释；
+  \item 记录 V0.1--V0.7 的优化过程、自动化验证与当前失败风险。
+\end{enumerate}
+
+\section{技术依据与问题定义}
+
+\subsection{预训练检测与追踪}
+项目采用 Ultralytics 提供的 YOLO11n 检测权重，
+不进行足球专用训练或微调。官方文档给出了该模型的检测接口和预训练使用方式
+\cite{yolo11}。
+通用 \code{person} 类不区分球员、裁判、守门员与观众，
+因此项目中的角色标签来自后续启发式处理，而不是模型原生的细粒度足球类别。
+
+ByteTrack 的基本思路是利用检测框建立时间关联，并利用较低置信度检测补充关联证据
+\cite{bytetrack}。
+本项目调用现有实现，不重新实现其核心算法。
+追踪 ID 表示短时关联，既不是球衣号码，也不是经确认的真实球员身份。
+
+\subsection{局部平面映射}
+单应性描述平面之间的投影关系，适用于将近似共面的球场参考点与图像位置建立对应
+\cite{opencv}。
+本文实现中的具体关键帧配置、有效区域和插值规则属于本项目的工程选择，
+不意味着已经完成一般性的自动摄像机标定。
+
+本项目依次处理三个不同问题：
+\begin{enumerate}
+  \item \textbf{检测：}当前帧中哪些图像区域可能包含目标；
+  \item \textbf{关联：}相邻帧中的目标记录是否属于同一临时轨迹；
+  \item \textbf{统计：}在几何与身份条件允许的范围内，如何汇总位置样本。
+\end{enumerate}
+前一阶段存在错误时，后一阶段的可视化不能自动修正这些错误。
+
+\section{数据、环境与实验边界}
+
+\subsection{输入素材}
+原始素材由项目使用者提供，为约两分钟的足球集锦。
+本文未独立核验其比赛来源、拍摄参数或素材授权，不将其作为公开基准数据集。
+归一化输入文件为 \path{data/soccervideo_cfr.mp4}，
+分辨率 $1280\times588$，帧率 30 FPS，总计 3,534 帧，时长 117.8 秒。
+
+早期发现输入具有可变帧率，按平均帧率写出可能造成播放节奏不一致。
+项目因此使用 FFmpeg 转换为固定 30 FPS，并保留原始素材。
+FFmpeg 的帧率与裁剪过滤器用于时间轴归一化和连续片段提取\cite{ffmpeg}。
+归一化有利于帧号对齐，但并不消除压缩模糊或恢复缺失的视觉细节。
+
+\subsection{局部研究片段}
+V0.6 与 V0.7 使用原文件时间轴上的
+\[
+  74.7 \leq t < 86.6\ \mathrm{s}.
+\]
+对应原视频零基帧号 2241--2597，共 357 帧，时长 11.9 秒。
+这一时间不是画面中的比赛计时器读数。
+片段独立保存为 \path{data/v06_homography_clip.mp4}。
+
+片段包含同一连续镜头，但摄像机会平移与缩放。
+有效分析范围仅为右侧禁区，未覆盖整个球场。
+球场长宽采用名义尺寸 $105\times68$ 米，未经过现场测量。
+
+\subsection{环境快照与未测指标}
+表~\ref{tab:env} 为整理报告时读取的本地软件版本，
+并不代表所有历史版本都在完全相同环境下运行。
+依赖文件目前没有锁定所有包版本，因此跨环境重跑可能产生不同记录。
+
+\begin{table}[htbp]
+\centering
+\caption{本地环境快照}
+\label{tab:env}
+\begin{tabular}{ll}
+\toprule
+项目 & 版本或说明\\
+\midrule
+操作系统接口 & Darwin / macOS\\
+Python & 3.12.0\\
+Ultralytics & 8.4.155\\
+OpenCV Python & 5.0.0.93\\
+NumPy & 2.5.3\\
+LAP & 0.5.13\\
+检测权重 & \code{yolo11n.pt}\\
+训练策略 & 未进行自定义训练或微调\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+项目没有完整人工标注集，也没有记录用于比较的标准硬件推理耗时。
+本文不报告 Precision、Recall、mAP、IDF1、HOTA 或实时处理速度；
+官方模型在其他数据集上的指标不能替代本项目的评价结果。
+
+\section{版本迭代与总体架构}
+
+\begin{table}[htbp]
+\centering
+\caption{V0.1--V0.7 的开发里程碑}
+\label{tab:versions}
+\small
+\begin{tabularx}{\linewidth}{@{}lLL@{}}
+\toprule
+版本 & 新增能力 & 引入该能力的原因\\
+\midrule
+V0.1 & 预训练检测、彩色框与视频输出 & 验证最小端到端流程\\
+V0.2 & 草地邻域过滤、分类别阈值 & 减少看台人员与场外目标标注\\
+V0.3 & 人员 ByteTrack ID、独立足球检测 & 建立短时人员关联，保留小球候选\\
+V0.4 & 球衣颜色、守门员配置、角色投票、CSV & 区分队伍与角色，保存结构化结果\\
+V0.5 & 单球候选关联、短时预测、状态字段 & 缓解足球间歇漏检与部分场地标记误检\\
+V0.6 & 手工关键帧局部单应性映射 & 在移动镜头条件下进行受限二维展示\\
+V0.7 & 短轨迹、两队位置热力图、质量报告 & 汇总已有坐标并暴露数据连续性问题\\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+V0.1 的共享置信度阈值为 0.25。V0.2 最终保留人员阈值 0.5、
+足球阈值 0.3；V0.3 起足球候选阈值改为 0.18。
+因此 V0.2 与 V0.3 的视频对比同时改变追踪机制和足球阈值，
+不能视为只改变单一因素的追踪消融实验。
+当前检测入口保留 V0.5 的检测逻辑，
+V0.6 和 V0.7 通过读取既有 CSV 增加下游功能。
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[
+  box/.style={draw=black!45,fill=black!3,rounded corners=1mm,
+    minimum height=13mm,text width=16mm,align=center,font=\footnotesize},
+  flow/.style={-{Latex[length=1.6mm]},draw=black!65}
+]
+\node[box] (v) {视频\\逐帧读取};
+\node[box,right=2mm of v] (d) {YOLO\\目标检测};
+\node[box,right=2mm of d] (f) {场内过滤\\与阈值};
+\node[box,right=2mm of f,text width=23mm] (r) {人员 ID/角色\\独立足球关联};
+\node[box,right=2mm of r] (c) {CSV\\结构化记录};
+\node[box,right=2mm of c,text width=18mm] (h) {局部几何\\有效性检查};
+\node[box,right=2mm of h,text width=21mm] (a) {短轨迹\\位置统计};
+\draw[flow] (v)--(d);
+\draw[flow] (d)--(f);
+\draw[flow] (f)--(r);
+\draw[flow] (r)--(c);
+\draw[flow] (c)--(h);
+\draw[flow] (h)--(a);
+\end{tikzpicture}
+\caption{逻辑流程示意。人员关联和足球关联实际采用独立分支，
+V0.6/V0.7 复用既有记录而不重新运行检测。}
+\end{figure}
+
+\section{方法}
+
+\subsection{分类别检测阈值与场地支持}
+当前人员显示阈值为 0.5，ByteTrack 的人员输入允许低至 0.1 的检测；
+足球采用独立检测分支，候选阈值为 0.18。
+该设置将人员显示需求与小球候选保留需求分离。
+置信度是模型输出分数，不是经过本项目校准的“真实目标概率”。
+
+对每帧构造 HSV 草地掩膜。对于框
+$b=(x_1,y_1,x_2,y_2)$，采用锚点
+\begin{equation}
+ \mathbf{a}(b)=
+ \begin{cases}
+ ((x_1+x_2)/2,\ y_2), & \text{人员};\\
+ ((x_1+x_2)/2,\ (y_1+y_2)/2), & \text{足球}.
+ \end{cases}
+\end{equation}
+若锚点邻域内草地像素比例不小于 0.25，则认为该目标具有场内支持。
+对于底部被裁切的近景人员，使用框下部区域进行补充检查。
+这一机制是颜色启发式，不等同于球场语义分割。
+人员脚点靠近广告牌或草地掩膜受光照影响时仍可能误判。
+
+\subsection{人员 ID 与比赛相关角色}
+人员由 ByteTrack 进行短时关联，足球不进入该人员 ID 流程。
+角色分类在标注绘制之前，从人员框的中央上半身裁剪球衣区域：
+横向约覆盖框宽的 20\%--80\%，纵向约覆盖框高的 12\%--55\%。
+通过比赛相关的 HSV 颜色配置生成角色候选，再以每个 ID 的时间投票
+减少单帧标签闪烁。
+
+当前素材默认将红色映射为 Team A、白色映射为 Team B、
+黑色映射为裁判、蓝色映射为 Team B 守门员。
+Team A 守门员颜色没有得到确认，因此默认关闭该配置，
+不能声称两队守门员均已可靠识别。
+颜色模糊、裁剪过小或未配置的外观保留为 \code{unknown}。
+
+这种分类不读取姓名或球衣号码，也不是专门训练的裁判分类器。
+同色工作人员可能被误标；人员 ID 切换也可能带来角色历史混淆。
+CSV 中的 YOLO 置信度描述检测框，
+不应解释为队伍或裁判角色的置信度。
+
+\subsection{独立足球关联与短时预测}
+V0.5 在足球候选阈值之后增加形状、外观与时间关联检查。
+候选框最大边长为 48 像素，宽高比允许范围为 0.35--1.8。
+外观检查使用灰度标准差或颜色饱和度证据，
+默认阈值分别为 25 和 180，用于抑制部分平滑白色场地标记。
+
+暂定轨迹至少需要两次附近检测才能确认。
+低置信度起始轨迹还需要球员邻近、明显位移或较高历史置信度等证据，
+避免仅因一个静止白点持续出现就立即确认。
+已确认轨迹根据预测位置选择附近候选，每帧最多输出一个足球结果。
+
+设上次检测与当前检测相隔 $\Delta$ 帧，
+检测中心为 $\mathbf{c}_t$，则观测速度与平滑速度为
+\begin{align}
+ \mathbf{v}^{\mathrm{obs}}_t
+   &=\frac{\mathbf{c}_t-\mathbf{c}_{t-\Delta}}{\Delta},\\
+ \widehat{\mathbf{v}}_t
+   &=\lambda\widehat{\mathbf{v}}_{\mathrm{prev}}
+     +(1-\lambda)\mathbf{v}^{\mathrm{obs}}_t,
+ \qquad \lambda=0.65.
+\end{align}
+缺失期间采用图像坐标下的常速度外推，
+$\widehat{\mathbf{c}}_{t+1}=\widehat{\mathbf{c}}_t+\widehat{\mathbf{v}}$，
+最多连续预测 8 帧，在 30 FPS 下约为 0.27 秒。
+关联基准距离为 120 像素，缺失帧增加时适度放宽搜索范围。
+
+CSV 使用 \code{detected} 与 \code{predicted} 区分两类足球记录。
+预测框使用虚线，且不填写 YOLO 检测置信度。
+预测是估计，不是新增模型检测；急停、射门、遮挡和摄像机运动
+均可能使常速度假设失效。
+
+\subsection{手工关键帧单应性}
+定义图像点 $(u,v)$ 与名义球场点 $(x,y)$ 的关系：
+\begin{equation}
+ s
+ \begin{bmatrix}x\\y\\1\end{bmatrix}
+ =
+ \mathbf{H}_t
+ \begin{bmatrix}u\\v\\1\end{bmatrix}.
+\end{equation}
+以右侧球门位于 $x=105$、远端边线位于 $y=0$ 为坐标约定。
+有效区域为
+\begin{equation}
+ \ROI=[88.5,105]\times[13.84,54.16].
+\end{equation}
+每个关键帧至少使用四个已命名、非共线的可见地面参考点，
+包括禁区或小禁区角点、禁区弧交点、点球点、边角与门柱底部。
+门柱顶部不属于地面平面，不能用于这一标定。
+
+关键帧位于局部帧号
+$0,30,60,90,120,150,180,210,240,270,300,330,356$。
+被遮挡、无法可靠辨认的小禁区角点不强行标注。
+对帧 90、270、300 和 330，配置中省略了远端小禁区角点。
+
+\subsection{移动镜头的受限插值}
+不直接对 $\mathbf{H}$ 的系数做线性插值。
+对相邻关键帧 $k$ 和 $k+1$，
+将有效区域四角 $\mathbf{q}_j$ 经逆映射投到两张图像，
+得到 $\mathbf{p}_{k,j}$ 与 $\mathbf{p}_{k+1,j}$。
+对中间帧 $t$，令
+\begin{align}
+ \alpha &=\frac{t-f_k}{f_{k+1}-f_k},\\
+ \mathbf{p}_{t,j}
+   &=(1-\alpha)\mathbf{p}_{k,j}+\alpha\mathbf{p}_{k+1,j}.
+\end{align}
+这里 $k$ 是关键帧索引，$f_k$ 和 $f_{k+1}$ 是相邻关键帧的实际帧号，
+二者通常相隔 30 帧，而非必须相差一帧。
+再由 $\mathbf{p}_{t,j}\leftrightarrow\mathbf{q}_j$ 拟合当前帧映射。
+
+该方式只近似补偿平滑摄像机运动，
+不是一般的自动几何跟踪。关键帧范围外不外推，
+落在有效区域外的目标保留原始框和无效原因，
+但不填写二维坐标，也不强制裁剪到区域边界。
+
+对参与拟合的 $n$ 个参考点，记录图像重投影残差
+\begin{equation}
+ \mathrm{RMSE}
+ =\sqrt{\frac1n\sum_{j=1}^{n}
+   \left\|\pi(\mathbf{H}^{-1}\widetilde{\mathbf{q}}_j)
+           -\mathbf{p}_j\right\|_2^2},
+\end{equation}
+其中 $\pi$ 为齐次坐标归一化。
+超过 12 像素时拒绝标定。该残差使用拟合点计算，
+不是独立验证误差，也不能换算成已知的实际米级精度。
+
+\subsection{轨迹片段与断轨规则}
+V0.7 以连续帧号和临时 ID 建立人员轨迹片段。
+遇到缺帧、无效映射、同帧重复 ID、角色改变或过大位置跳变时断开，
+不跨越间隙连接长线，也不合并不同 ID。
+默认显示当前片段最近两秒的历史。
+
+人员和足球的位置跳变阈值分别为每帧 1.5 和 5 个名义米。
+这些数值只作为可视化保护条件，不是经过验证的速度上限。
+无 ID 的人员可以进入队伍位置分布，但不能获得推测的个人轨迹。
+足球轨迹保持无 ID，涉及预测点的线段使用较细的虚线。
+
+\subsection{队伍热力图的统计定义}
+将名义球场划分为 $1\times1$ 米单元。
+设 $A_t^{(g)}$ 为第 $t$ 帧接受的队伍 $g$ 人员样本集合，
+则单元 $B_{ij}$ 的累计量定义为
+\begin{equation}
+ H_g(i,j)=\frac1f\sum_t\sum_{p\in A_t^{(g)}}
+           \mathbb{I}\bigl(\mathbf{q}_{t,p}\in B_{ij}\bigr),
+ \qquad f=30.
+\end{equation}
+单位为累计人员观察秒数（person-seconds）。
+多名人员同时出现时，总量可以超过视频时长。
+
+热力图包括已分配队伍的守门员，不包括裁判、未知角色、足球、
+无效映射或同帧重复 ID。边界单元只显示有效多边形内的部分，
+不进行跨边界高斯平滑。两队使用相同颜色标尺。
+
+另定义“至少存在一名队员的帧时间”
+\begin{equation}
+ T_g=\frac1f\sum_t\mathbb{I}\bigl(|A_t^{(g)}|>0\bigr).
+\end{equation}
+$T_g$ 不超过片段时长，与累计人员观察秒数含义不同。
+二者都不是控球率、真实球员出场时间或球队优势指标。
+
+\section{结果与分析}
+
+\subsection{早期版本的定性观察}
+V0.1 到 V0.2 的同时间视频对比中，许多看台和广告牌附近的人员框被过滤，
+但本文没有人工逐帧计数，不能报告误检率下降的精确百分比。
+V0.3 为人员加入 ID，同时降低足球阈值；
+局部检查观察到人员 ID 切换与点球点误检。
+V0.5 的外观与关联规则在此前约 46 秒的案例中抑制了该场地标记候选，
+并在约 80 秒的案例中补充短时预测。
+这些均为个案观察，不是总体精度的统计结论。
+
+历史 V0.4 记录包含 32,249 条目标行；
+历史 V0.5 记录包含 32,118 行，其中人员 30,439 行、
+足球检测 1,068 行、足球预测 611 行。
+这些行数不是独立目标数量，也不构成准确率提升证据。
+预测、候选筛选和阈值改变均会改变输出行数。
+
+\subsection{V0.6 局部映射结果}
+局部片段的 4,281 行记录中，
+2,904 行具有有效二维位置，1,377 行位于有效区域外。
+有效映射比例约为 67.83\%，
+但区域外目标不应自动计为漏检或错误坐标。
+
+有效记录的角色分布见表~\ref{tab:roles}。
+未知角色记录保留在数据中，而不是强制归入某队。
+关键帧拟合残差约为 1.63--7.41 像素。
+项目还检查了关键帧与中点的球场线叠加，
+但没有建立独立的地面坐标真值集。
+
+\begin{table}[htbp]
+\centering
+\caption{有效映射记录的角色分布（逐帧行数）}
+\label{tab:roles}
+\begin{tabular}{lr}
+\toprule
+角色 & 行数\\
+\midrule
+Team A & 1,031\\
+Team B & 1,536\\
+Team B 守门员 & 130\\
+Unknown & 107\\
+足球（检测与预测合计） & 100\\
+\midrule
+合计 & 2,904\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{足球输出覆盖情况}
+357 帧中有 146 帧产生检测结果，78 帧产生预测结果，
+133 帧没有足球输出，比例分别约为 40.90\%、21.85\% 和 37.25\%。
+检测与预测合计覆盖约 62.75\% 的片段帧。
+该统计包含有效映射区域内外的足球输出，
+而局部二维足球记录只有 100 行。
+存在输出不等于识别正确，因此这些比例不是 Recall。
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[x=1cm,y=1cm,font=\small]
+ \fill[observedBlue] (0,0) rectangle (4.907563,0.8);
+ \fill[predictedGold] (4.907563,0) rectangle (7.529412,0.8);
+ \fill[black!18] (7.529412,0) rectangle (12,0.8);
+ \node[text=white,align=center] at (2.453782,0.4) {检测：146 帧\\40.90\%};
+ \node[align=center] at (6.218488,0.4) {预测：78 帧\\21.85\%};
+ \node[align=center] at (9.764706,0.4) {无输出：133 帧\\37.25\%};
+ \node[anchor=north west] at (0,-0.1) {分母：全部 357 帧；不是人工真值准确率。};
+\end{tikzpicture}
+\caption{足球检测、预测与无输出的帧级覆盖分布。预测并未计作模型检测。}
+\end{figure}
+
+\subsection{轨迹碎片与角色稳定性}
+按照既定断轨规则，本次产生 60 个有效人员临时 ID、
+218 段人员轨迹和 5 段局部足球轨迹。
+60 个 ID 不代表 60 名真实球员；
+218 段也不能全部归因于身份切换，
+因为出界、缺失、角色变化与保守断轨都会产生碎片。
+
+轨迹管理记录了 167 次缺失、无效或重复条件引起的断开，
+41 次角色改变断开及 2 次位置跳变断开。
+该事件计数由人员与足球共用的管理器产生，不是人工身份切换标注。
+本次输入没有同帧重复 ID，相关防护未触发，
+但不同 ID 对同一真实人员的重复检测仍可能存在。
+
+上述碎片情况说明当前数据不足以支持连续的个人跑动测量。
+V0.7 的选择是保留碎片并揭示风险，而非通过跨 ID 拼接隐藏问题。
+
+\subsection{两队观察时间与位置分布}
+表~\ref{tab:heat} 展示热力图累计量。
+Team B 的人员观察秒数较高，可能来自镜头内人数、遮挡、
+检测可用性和队伍分类差异，不能解释为控球或战术优势。
+
+\begin{table}[htbp]
+\centering
+\caption{两队局部位置样本汇总}
+\label{tab:heat}
+\begin{tabular}{lrr}
+\toprule
+指标 & Team A & Team B\\
+\midrule
+接受的人员样本数 & 1,031 & 1,666\\
+累计人员观察秒数 & 34.37 & 55.53\\
+至少一名队员存在的帧时间（秒） & 10.53 & 11.87\\
+最大单元累计量（人员秒） & 2.57 & 2.40\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[htbp]
+\centering
+\PitchHeatPanel{Team A}{\TeamAHeatCells}
+\hspace{1.2cm}
+\PitchHeatPanel{Team B}{\TeamBHeatCells}
+\par\smallskip
+{\small
+\textcolor{heatLow}{低累计量}\quad
+\textcolor{heatMid}{中累计量}\quad
+\textcolor{heatHigh}{高累计量}\qquad
+共同范围：0--2.57 人员秒/名义 $1\,\mathrm{m}^2$ 单元。}
+\caption{从 V0.6 CSV 接受样本重绘的局部位置热力图。
+两队使用同一标尺，并包含已分配队伍的守门员。
+本图以矢量单元保存真实累计值，不依赖外部图片；
+配色为论文版式重绘，与 OpenCV PNG 的色谱不要求逐像素一致。
+禁区外空白表示不在分析范围内，不表示没有人员活动。}
+\label{fig:heat}
+\end{figure}
+
+\section{工程验证与可复现性}
+
+\subsection{软件测试与视频验证}
+整理本报告时重新运行测试命令，80 个测试全部通过。
+测试覆盖检测标签、阈值分支、草地支持、角色裁剪与投票、
+足球确认与预测、单应性退化情况、CSV 时间对齐、
+轨迹断开、热力图累计单位和真实合成视频输出。
+软件测试验证程序契约与边界行为，
+不替代真实足球画面的识别精度评价。
+
+输出轨迹视频为 H.264 MP4，
+分辨率 $1800\times588$，30 FPS，357 帧，11.9 秒。
+视频完整解码成功，右侧二维面板随帧改变。
+还在局部帧 0、60、180、356 上比较了 V0.6 默认绘制与提交版本，
+像素结果一致，说明共享绘图扩展没有改变这些抽查帧的旧版默认输出。
+
+\subsection{输出保护与数据来源}
+默认模式保护既有 V0.7 输出。
+发布阶段使用原子无覆盖链接，
+避免其他进程在编码期间创建同名文件后被覆盖。
+显式覆盖时保留旧输出的恢复副本；
+若部分替换失败，则恢复本次替换的文件。
+目录或输出符号链接被拒绝。
+恢复失败会保留恢复文件并报告错误；
+这不是可保证断电一致性的多文件事务。
+
+报告保存片段、标定配置、映射 CSV 和上游报告的 SHA-256。
+这些哈希帮助确认“分析了哪一份文件”，
+不证明检测正确或坐标具有真实精度。
+V0.6 上游报告没有记录其输出 CSV 的哈希，
+因此不能仅凭该上游报告证明 CSV 从未被编辑。
+
+\subsection{评价体系的边界}
+本报告将证据划分为三类：
+\begin{enumerate}
+ \item \textbf{工程证据：}测试通过、文件成功生成、帧数与时间轴一致；
+ \item \textbf{输出描述：}检测行数、映射行数、状态比例和轨迹片段；
+ \item \textbf{识别或物理精度：}需要人工真值或实测参考，目前未完成。
+\end{enumerate}
+不能将第一类或第二类证据直接替代第三类。
+后续评价应在相同输入、相同帧、相同设置下抽样标注，
+将模型检测与预测分别计算，并使用独立几何点验证映射误差。
+
+\section{局限性、素材与隐私}
+
+\subsection{主要局限}
+\begin{enumerate}
+ \item \textbf{通用检测器：}远景足球像素少，压缩、运动模糊、
+       遮挡与白色场地标记会造成漏检或误检。
+ \item \textbf{临时身份：}ID 可能碎裂或在近邻人员间切换，
+       小位移身份切换不一定触发跳变保护。
+ \item \textbf{比赛相关颜色：}球衣分类依赖当前素材配置，
+       对其他比赛、光照或相似裁判与守门员服装未验证泛化。
+ \item \textbf{受限几何：}尺寸为名义假设，标定与插值会漂移，
+       未实现自动切镜检测、自动球场线跟踪或整场标定。
+ \item \textbf{腾空足球：}足球中心不一定位于地面平面，
+       二维点仅是投影估计，不能用于真实球速或三维轨迹。
+ \item \textbf{样本量与标签：}只对一段集锦及一个短片段进行开发与检查，
+       不存在足以支撑普遍性能结论的独立标注集。
+\end{enumerate}
+
+\subsection{素材与公开记录}
+视频来源与授权未核实，因此本文不嵌入或重新分发原比赛画面，
+也不宣称拥有素材版权。
+论文热力图由项目数值记录重绘，仅用于记录本次工程结果。
+公开仓库的可分享内容应以代码、配置、文档和测试为主，
+视频、模型权重、生成结果和本地编辑器配置保持本地。
+本报告不包含个人邮箱、密钥或私人绝对目录。
+
+\section{结论与后续工作}
+
+项目已完成从基础目标检测到局部空间可视化的原型闭环。
+V0.1--V0.7 的迭代使每次改动对应一个具体问题，
+并逐步形成视频输出、CSV、二维映射、短轨迹、位置热力图和质量报告。
+对于个人学习与作品展示，该原型阶段可以结题。
+
+结题不表示系统已具备整场比赛分析能力。
+当前最值得进一步投入的不是增加统计指标数量，
+而是建立小型人工评估集、检查身份连续性、
+验证独立地面参考点，并采集更长且少切镜头的素材。
+只有在相关误差得到验证后，
+才应尝试个人真实距离、速度或战术级量化分析。
+
+\appendix
+\section{项目结构与复现命令}
+
+\begin{lstlisting}
+Soccer-Video-Analysis/
+  README.md
+  requirements.txt
+  src/
+    detect.py
+    team_classifier.py
+    ball_tracker.py
+    homography.py
+    pitch.py
+    map_pitch.py
+    calibrate.py
+    analytics.py
+  config/
+    v06_pitch_calibration.json
+  tests/
+  docs/
+    versions/
+    paper/
+      soccer_project_report.tex
+  data/
+  outputs/
+\end{lstlisting}
+
+\noindent\textbf{环境与检测阶段：}
+\begin{lstlisting}[language=bash]
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+
+ffmpeg -n -i data/soccervideo.mp4 \
+  -vf "fps=30" -c:v libx264 -pix_fmt yuv420p -an \
+  data/soccervideo_cfr.mp4
+
+python src/detect.py
+\end{lstlisting}
+上述转换仅在相应输入文件存在且 CFR 输出尚未生成时执行。
+现有素材不应重复覆盖。检测权重首次使用可能需要下载。
+
+\noindent\textbf{连续片段、局部映射与统计：}
+\begin{lstlisting}[language=bash]
+ffmpeg -n -i data/soccervideo_cfr.mp4 \
+  -vf "trim=start_frame=2241:end_frame=2598,setpts=PTS-STARTPTS" \
+  -an -c:v libx264 -pix_fmt yuv420p -movflags +faststart \
+  data/v06_homography_clip.mp4
+
+python src/map_pitch.py
+python src/calibrate.py --review
+python src/analytics.py
+python -m unittest discover -s tests
+\end{lstlisting}
+
+\noindent\textbf{改变可视化参数并保留默认结果：}
+\begin{lstlisting}[language=bash]
+python src/analytics.py \
+  --trail-seconds 2 \
+  --max-person-step-m 1.5 \
+  --max-ball-step-m 5 \
+  --output-dir outputs/v07_alternative
+\end{lstlisting}
+
+\section{当前关键参数}
+
+\small
+\begin{longtable}{@{}p{5.3cm}p{2.1cm}p{7.6cm}@{}}
+\caption{当前默认参数与语义}\\
+\toprule
+参数 & 数值 & 说明\\
+\midrule
+\endfirsthead
+\toprule 参数 & 数值 & 说明\\\midrule
+\endhead
+模型输入尺寸 & 960 & Ultralytics 的 \code{imgsz} 参数；不是原视频尺寸\\
+人员显示阈值 & 0.5 & 影响人员框的最终显示\\
+人员追踪输入阈值 & 0.1 & 保留较弱人员关联证据\\
+足球候选阈值 & 0.18 & 小目标候选分支，不等于球检测准确率\\
+最小草地支持比例 & 0.25 & 锚点邻域的颜色启发式\\
+足球确认命中数 & 2 & 还需满足适用的确认条件\\
+足球最大预测间隙 & 8 帧 & 30 FPS 时约 0.27 秒\\
+足球关联基准距离 & 120 像素 & 图像空间参数，随缺失帧放宽\\
+足球最大框边长 & 48 像素 & 形状过滤\\
+足球宽高比范围 & 0.35--1.8 & 非真实球形约束\\
+足球灰度标准差阈值 & 25 & 外观证据之一\\
+足球饱和度阈值 & 180 & 可替代纹理证据\\
+速度平滑旧值权重 & 0.65 & 独立足球关联的图像速度平滑\\
+名义球场尺寸 & $105\times68$ 米 & 未实测，不等于物理精度保证\\
+关键帧数量 & 13 & 单一连续镜头内手工标定\\
+最大拟合残差 & 12 像素 & 拟合点 RMSE 拒绝阈值\\
+轨迹显示历史 & 2 秒 & 当前连续片段内的最近历史\\
+人员跳变阈值 & 1.5 名义米/帧 & 仅作可视化保护\\
+足球跳变阈值 & 5 名义米/帧 & 不用于计算真实速度\\
+热力图单元 & $1\times1$ 名义米 & 累计人员观察秒数\\
+\bottomrule
+\end{longtable}
+\normalsize
+
+\section{标定关键帧与拟合残差}
+
+\begin{table}[htbp]
+\centering
+\caption{手工关键帧的配置快照；残差不是独立几何精度}
+\small
+\begin{tabular}{rrrr}
+\toprule
+局部帧号 & 局部时间（秒） & 参考点数 & 拟合 RMSE（像素）\\
+\midrule
+0   & 0.00  & 6 & 3.34\\
+30  & 1.00  & 7 & 3.33\\
+60  & 2.00  & 7 & 4.67\\
+90  & 3.00  & 6 & 2.05\\
+120 & 4.00  & 7 & 5.64\\
+150 & 5.00  & 6 & 4.73\\
+180 & 6.00  & 6 & 3.18\\
+210 & 7.00  & 6 & 7.41\\
+240 & 8.00  & 6 & 4.11\\
+270 & 9.00  & 5 & 1.65\\
+300 & 10.00 & 5 & 2.83\\
+330 & 11.00 & 5 & 1.63\\
+356 & 11.87 & 5 & 2.83\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{CSV、产物与存档快照}
+
+V0.5 的核心记录字段为
+\begin{lstlisting}
+frame,time,track_id,role,x1,y1,x2,y2,confidence,ball_state
+\end{lstlisting}
+V0.6 增加原始帧号、原始时间、片段 ID、锚点坐标、
+二维坐标、映射有效性、原因与位置依据。
+V0.7 JSON 增加轨迹片段、逐帧人数、足球覆盖、排除计数、
+参数、输入哈希与适用限制。
+预测足球的 \code{confidence} 和所有足球的 \code{track_id} 保持为空。
+
+\begin{table}[htbp]
+\centering
+\caption{本地保存的主要最终产物}
+\small
+\begin{tabularx}{\linewidth}{@{}LL@{}}
+\toprule
+相对路径 & 内容\\
+\midrule
+\path{outputs/v05_ball_tracking.mp4} & 完整素材的检测、角色与足球关联\\
+\path{outputs/v05_detections.csv} & 上游人员与足球记录\\
+\path{outputs/v06_pitch_mapping.mp4} & 局部视频与二维位置\\
+\path{outputs/v06_pitch_mapping.csv} & 有效与无效映射记录\\
+\path{outputs/v06_pitch_mapping.json} & 上游数据来源及标定信息\\
+\path{outputs/v06_calibration_review.jpg} & 标定点与投影球场线检查\\
+\path{outputs/v07_local_trajectories.mp4} & 二维连续短轨迹\\
+\path{outputs/v07_team_heatmaps.png} & 两队共享色标位置分布\\
+\path{outputs/v07_summary.json} & 统计、排除条件与来源哈希\\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+本文对应的是 V0.7 本地工作区及输出快照。
+整理时最后已知远程提交为 V0.6 的 \code{1b57822}；
+V0.7 和本论文尚未在本次整理中自动提交或上传。
+仓库链接用于代码入口，不应被当作当前本地所有产物已公开的证明。
+
+\noindent 输入 SHA-256 快照：
+\begin{lstlisting}
+clip:
+81094b249c550c15fdc8e017fab4870cb04932d3706eeddfbf951dff585a6c38
+calibration:
+995f5fb76dad7436569f5bbed7d9910a71ae3b4d15153e3bee87c249eb80436b
+mapping_csv:
+995e54fd82b551d2c91621d5d29b6c5b0e1f12634411adebf54810112add307e
+mapping_report:
+6ec7db7b80a208a0746886efbae5fcc05b35b01ef1343f1af9be2ec08cad6eb3
+\end{lstlisting}
+
+\section*{写作与存档说明}
+\addcontentsline{toc}{section}{写作与存档说明}
+本报告依据项目代码、版本 README 与本地 CSV/JSON 输出整理，
+LaTeX 源稿使用 AI 辅助编写。
+它是个人工程项目的存档稿，不是已发表或经同行评审的论文。
+所有统计均应结合记录语义阅读；
+任何对识别准确率、真实球员身份或物理运动量的进一步主张都需要额外验证。
+
+\begin{thebibliography}{9}
+\addcontentsline{toc}{section}{参考文献}
+
+\bibitem{yolo11}
+Ultralytics.
+\emph{Ultralytics YOLO11: Official Model Documentation}.
+\url{https://docs.ultralytics.com/models/yolo11/}.
+访问日期：2026-10-03.
+
+\bibitem{bytetrack}
+Yifu Zhang, Peize Sun, Yi Jiang, et al.
+\emph{ByteTrack: Multi-Object Tracking by Associating Every Detection Box}.
+arXiv:2110.06864, 2021.
+\url{https://arxiv.org/abs/2110.06864}.
+
+\bibitem{opencv}
+OpenCV.
+\emph{Basic Concepts of the Homography Explained with Code}.
+\url{https://docs.opencv.org/4.x/d9/dab/tutorial_homography.html}.
+访问日期：2026-10-03.
+
+\bibitem{ffmpeg}
+FFmpeg.
+\emph{FFmpeg Filters Documentation}.
+\url{https://ffmpeg.org/ffmpeg-filters.html}.
+访问日期：2026-10-03.
+
+\bibitem{project}
+JIAHE35.
+\emph{Soccer-Video-Analysis: Project Code and Version Documentation}.
+\url{https://github.com/JIAHE35/Soccer-Video-Analysis}.
+本报告的实测数字以本地 V0.7 输出快照为准.
+
+\end{thebibliography}
+\end{document}
